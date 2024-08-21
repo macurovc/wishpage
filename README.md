@@ -19,7 +19,7 @@ name: wishpage
 services:
   wishpage:
     container_name: wishpage_server
-    image: wishpage:latest
+    image: ghcr.io/macurovc/wishpage/wishpage:latest
     environment:
       - ADMIN_PASSWORD=<<admin_password>>
       - DATABASE_DIR=/app/db
