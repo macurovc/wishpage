@@ -11,6 +11,7 @@ import (
 	"log/slog"
 	"net"
 	"net/http"
+	"net/smtp"
 	"os"
 	"path/filepath"
 	"strings"
@@ -23,12 +24,17 @@ import (
 )
 
 const (
-	ADMIN_PASSWORD_ENV = "ADMIN_PASSWORD"
-	DEV_MODE_ENV       = "DEV_MODE"
-	ITEMS_TABLE        = "items"
-	DB_DIR_ENV         = "DATABASE_DIR"
-	NULL_STRING        = "NULL"
-	NULL_UINT          = -1
+	ADMIN_PASSWORD_ENV  = "ADMIN_PASSWORD"
+	DEV_MODE_ENV        = "DEV_MODE"
+	ITEMS_TABLE         = "items"
+	DB_DIR_ENV          = "DATABASE_DIR"
+	EMAIL_SMTP_SERVER   = "SMTP_SERVER"
+	EMAIL_SMTP_PORT     = "SMTP_PORT"
+	EMAIL_SMTP_USER     = "SMTP_USER"
+	EMAIL_SMTP_PASSWORD = "SMTP_PASSWORD"
+	EMAIL_RECIPIENTS    = "EMAIL_RECIPIENTS"
+	NULL_STRING         = "NULL"
+	NULL_UINT           = -1
 )
 
 type Server struct {
@@ -132,7 +138,6 @@ func getLoginHandler(s *Server) http.HandlerFunc {
 		json.NewEncoder(w).Encode(map[string]string{"token": tokenString})
 		slog.Info("login token correctly generated", "ip", getClientIP(r))
 	}
-
 }
 
 func authMiddleware(server *Server, next http.HandlerFunc) http.HandlerFunc {
@@ -220,6 +225,12 @@ func getReserveItemHandler(db *sql.DB) http.HandlerFunc {
 		}
 
 		fmt.Fprintf(w, "%d", count)
+
+		item, getErr := getItem(db, id)
+		if getErr == nil {
+			go sendNotificationEmail("Wishpage - item reservation",
+				fmt.Sprintf("the following item has been reserved: %+v", item))
+		}
 	}
 }
 
@@ -253,6 +264,12 @@ func getUpdateItemHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "cannot update the item", http.StatusInternalServerError)
 			return
 		}
+
+		item, getErr := getItem(db, id)
+		if getErr == nil {
+			go sendNotificationEmail("Wishpage - item update",
+				fmt.Sprintf("the following item has been updated: %+v", item))
+		}
 	}
 }
 
@@ -277,6 +294,9 @@ func getInsertItemHandler(db *sql.DB) http.HandlerFunc {
 			http.Error(w, "cannot insert the item", http.StatusInternalServerError)
 			return
 		}
+
+		go sendNotificationEmail("Wishpage - item insertion",
+			fmt.Sprintf("the following item has been inserted: %+v", body))
 	}
 }
 
@@ -296,11 +316,17 @@ func getDeleteItemHandler(db *sql.DB) http.HandlerFunc {
 			return
 		}
 
+		item, getErr := getItem(db, id)
 		err := deleteItem(db, id)
 		if err != nil {
 			slog.Error("cannot delete the item", "error", err.Error())
 			http.Error(w, "cannot delete the item", http.StatusInternalServerError)
 			return
+		}
+
+		if getErr == nil {
+			go sendNotificationEmail("Wishpage - item deleted",
+				fmt.Sprintf("the following item has been deleted: %+v", item))
 		}
 	}
 }
@@ -506,6 +532,21 @@ func getItems(db *sql.DB) ([]Item, error) {
 	return items, nil
 }
 
+func getItem(db *sql.DB, id string) (Item, error) {
+	row := db.QueryRow(fmt.Sprintf("SELECT * FROM %s WHERE id = $1", ITEMS_TABLE), id)
+
+	item := Item{}
+
+	scanErr := row.Scan(&item.Id, &item.Name, &item.Person, &item.Link, &item.Price,
+		&item.Count, &item.Category)
+
+	if scanErr != nil {
+		return Item{}, scanErr
+	}
+
+	return item, nil
+}
+
 func decreaseAmount(db *sql.DB, id string) (int32, error) {
 	// Begin a transaction
 	tx, err := db.Begin()
@@ -620,4 +661,36 @@ func updateItem(db *sql.DB, id string, item Item) error {
 func isDevMode() bool {
 	env := os.Getenv(DEV_MODE_ENV)
 	return env == "1"
+}
+
+func sendNotificationEmail(subject string, body string) {
+	from := os.Getenv(EMAIL_SMTP_USER)
+	password := os.Getenv(EMAIL_SMTP_PASSWORD)
+
+	to := strings.Split(os.Getenv(EMAIL_RECIPIENTS), ",")
+
+	smtpHost := os.Getenv(EMAIL_SMTP_SERVER)
+	smtpPort := os.Getenv(EMAIL_SMTP_PORT)
+
+	if len(smtpHost) == 0 {
+		slog.Info("No SMTP server set, skipping sending the email notification")
+		return
+	}
+
+	if len(smtpPort) == 0 {
+		smtpPort = "587"
+	}
+
+	auth := smtp.PlainAuth("", from, password, smtpHost)
+
+	msg := []byte(fmt.Sprintf("From: %s\r\nTo: %s\r\nSubject: %s\r\n\r\n%s\r\n",
+		from, strings.Join(to, ", "), subject, body))
+
+	err := smtp.SendMail(fmt.Sprintf("%s:%s", smtpHost, smtpPort), auth, from, to, msg)
+	if err != nil {
+		slog.Warn("failed to send email notifications", "error", err)
+		return
+	}
+
+	slog.Info("email notification sent successfully")
 }

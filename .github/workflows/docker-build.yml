@@ -5,7 +5,6 @@ on:
     types: [published]
 
 env:
-  DOCKER_IMAGE_NAME: wishpage
   DOCKER_REGISTRY: ghcr.io
 
 jobs:
@@ -32,5 +31,5 @@ jobs:
         context: .
         push: true
         tags: |
-          ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE_NAME }}:${{ github.event.release.tag_name }}
-          ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}/${{ env.DOCKER_IMAGE_NAME }}:latest
+          ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}:${{ github.event.release.tag_name }}
+          ${{ env.DOCKER_REGISTRY }}/${{ github.repository }}:latest
