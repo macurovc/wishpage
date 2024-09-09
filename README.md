@@ -19,7 +19,7 @@ name: wishpage
 services:
   wishpage:
     container_name: wishpage_server
-    image: ghcr.io/macurovc/wishpage/wishpage:latest
+    image: ghcr.io/macurovc/wishpage:latest
     environment:
       - ADMIN_PASSWORD=<<admin_password>>
       - DATABASE_DIR=/app/db
@@ -43,11 +43,13 @@ layer of security.
 If you want, you can activate email notifications by setting the following
 environment variables:
 
-- `SMTP_SERVER`: SMTP server hostname (e.g. `smtp.gmail.com`)
-- `SMTP_PORT`: SMTP server port (default: `587`)
-- `SMTP_USER`: username to log in
-- `SMTP_PASSWORD`: user password to log in
-- `EMAIL_RECIPIENTS`: comma-separated list of email addresses
+| Name | Description |
+| ---- | ----------- |
+| `SMTP_SERVER` | SMTP server hostname (e.g. `smtp.gmail.com`) |
+| `SMTP_PORT` | SMTP server port (default: `587`) |
+| `SMTP_USER` | username to log in |
+| `SMTP_PASSWORD` | user password to log in |
+| `EMAIL_RECIPIENTS` | comma-separated list of email addresses |
 
 In order to send notifications via Gmail, you have to activate the 2-factor
 authentication and then generate an app password by following [this
