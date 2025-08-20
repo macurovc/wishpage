@@ -1,21 +1,39 @@
-# Stage 1: Build the frontend
-FROM node:22-alpine AS frontend-builder
-WORKDIR /app/frontend
-COPY wishpage-app/ .
-RUN npm install
-RUN npm run build
+# --- Build Stage ---
+FROM node:lts AS builder
 
-# Stage 2: Build the backend
-FROM golang:1.23 AS backend-builder
-WORKDIR /app/backend
-COPY wishpage-server/ .
-RUN CGO_ENABLED=1 GOOS=linux go build -o main .
-
-# Stage 3: Final stage
-FROM gcr.io/distroless/base-nossl-debian12
 WORKDIR /app
-COPY --from=frontend-builder /app/frontend/dist ./frontend
-COPY --from=backend-builder /app/backend/main ./main
 
-EXPOSE 8080
-CMD ["./main"]
+# Install frontend dependencies and build
+COPY frontend/package*.json ./frontend/
+RUN npm install --prefix frontend
+COPY frontend/ ./frontend/
+RUN npm run build --prefix frontend
+
+# Install backend dependencies and build
+COPY backend/package*.json ./backend/
+RUN npm install --prefix backend
+COPY backend/ ./backend/
+RUN npm run build --prefix backend
+
+# Prune dev dependencies from backend node_modules
+RUN npm prune --prefix backend --omit=dev
+
+
+# --- Backend Runtime Stage with Frontend ---
+FROM gcr.io/distroless/nodejs20-debian12 AS runtime
+
+WORKDIR /app
+
+# Copy built app and package files from builder
+COPY --from=builder /app/backend/dist ./backend/dist
+COPY --from=builder /app/backend/package*.json ./backend/
+COPY --from=builder /app/backend/node_modules ./backend/node_modules
+COPY --from=builder /app/frontend/dist ./public
+
+# Expose backend port
+EXPOSE 3001
+
+# Command to start backend server
+# Distroless images have a non-root user and a default entrypoint.
+# We just need to provide the path to our script.
+CMD ["backend/dist/index.js"]

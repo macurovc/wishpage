@@ -1,0 +1,52 @@
+# General OS generated files
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Node.js and npm artifacts
+node_modules
+npm-debug.log
+yarn-error.log
+
+# Frontend specific (assuming path/ is your frontend)
+frontend/node_modules
+frontend/dist
+frontend/.env
+frontend/.cache
+.parcel-cache
+.vite-cache
+
+# Backend specific
+backend/node_modules
+backend/dist
+backend/.env
+
+# IDE and editor specific files
+.idea
+.vscode
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.swp
+
+# Temporary files
+*~
+\#*#
+*.log
+
+# macOS files
+._*
+.AppleDouble
+.LSOverride
+
+# Windows files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.aider*

@@ -1,0 +1,17 @@
+# Ignore node_modules
+node_modules
+**/node_modules
+
+# Ignore build outputs
+dist
+**/dist
+
+# Ignore git files
+.git
+.gitignore
+
+# Ignore Dockerfile
+Dockerfile
+
+# Ignore README
+README.md
