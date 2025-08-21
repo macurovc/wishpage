@@ -430,3 +430,15 @@ html[data-theme='dark'] .password-dialog {
     color: var(--text-color);
     transform: none;
 }
+
+@media (max-width: 768px) {
+  body {
+    padding: 1rem;
+  }
+
+  .App {
+    padding: 1rem;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
