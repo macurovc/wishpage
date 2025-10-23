@@ -29,7 +29,7 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 	body := rr.Body.String()
 	assert.Contains(t, body, "Alice")
 	assert.Contains(t, body, "Bob")
-	assert.Contains(t, body, "No wishlist items yet")
+	assert.Contains(t, body, "Select a family member above")
 	// No active tab since no member is selected
 	assert.NotContains(t, body, "nav-link active")
 }
