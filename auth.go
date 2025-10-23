@@ -1,0 +1,219 @@
+package main
+
+import (
+	"crypto/rand"
+	"crypto/subtle"
+	"encoding/base64"
+	"net/http"
+	"os"
+	"strings"
+	"sync"
+	"time"
+
+	"wishpage/templates"
+)
+
+// shouldUseSecureCookies determines if cookies should have the Secure flag
+// based on whether the request came via HTTPS (directly or through a proxy)
+func shouldUseSecureCookies(r *http.Request) bool {
+	// Allow forcing secure cookies for testing/special cases
+	if os.Getenv("FORCE_SECURE_COOKIES") == "true" {
+		return true
+	}
+
+	// Allow forcing insecure cookies for local development
+	if os.Getenv("ALLOW_INSECURE_COOKIES") == "true" {
+		return false
+	}
+
+	// Check if request came via HTTPS through a reverse proxy (Cloudflare Tunnel, nginx, etc.)
+	// Most proxies set X-Forwarded-Proto to indicate the original protocol
+	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
+		return true
+	}
+
+	// Check if direct HTTPS connection
+	if r.TLS != nil {
+		return true
+	}
+
+	// Default to false for direct HTTP connections (local LAN access)
+	return false
+}
+
+// Session management
+type sessionStore struct {
+	mu       sync.RWMutex
+	sessions map[string]time.Time // token -> expiry
+}
+
+func newSessionStore() *sessionStore {
+	return &sessionStore{
+		sessions: make(map[string]time.Time),
+	}
+}
+
+func (s *sessionStore) create(token string, expiry time.Time) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.sessions[token] = expiry
+}
+
+func (s *sessionStore) isValid(token string) bool {
+	s.mu.RLock()
+	defer s.mu.RUnlock()
+	expiry, exists := s.sessions[token]
+	if !exists {
+		return false
+	}
+	return time.Now().Before(expiry)
+}
+
+func (s *sessionStore) delete(token string) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	delete(s.sessions, token)
+}
+
+func (s *sessionStore) cleanup() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	now := time.Now()
+	for token, expiry := range s.sessions {
+		if now.After(expiry) {
+			delete(s.sessions, token)
+		}
+	}
+}
+
+// generateToken creates a secure random token for session management
+func generateToken() (string, error) {
+	b := make([]byte, 32)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return base64.URLEncoding.EncodeToString(b), nil
+}
+
+// requireAuth is middleware that requires a valid session cookie
+func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		// Get session cookie
+		cookie, err := r.Cookie("session_token")
+		if err != nil || !s.sessions.isValid(cookie.Value) {
+			// For page requests, redirect to login
+			// For API requests, return error
+			if strings.HasPrefix(r.URL.Path, "/api/") {
+				w.WriteHeader(http.StatusUnauthorized)
+				templates.Error("Unauthorized: Please log in").Render(r.Context(), w)
+				return
+			}
+			http.Redirect(w, r, "/login", http.StatusSeeOther)
+			return
+		}
+		next(w, r)
+	}
+}
+
+func (s *server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
+	// Display the login page
+	if r.URL.Path != "/login" {
+		http.NotFound(w, r)
+		return
+	}
+
+	// If already authenticated, redirect to edit page
+	cookie, err := r.Cookie("session_token")
+	if err == nil && s.sessions.isValid(cookie.Value) {
+		http.Redirect(w, r, "/edit", http.StatusSeeOther)
+		return
+	}
+
+	// Get error message from query params
+	errorMsg := r.URL.Query().Get("error")
+
+	templates.Login(errorMsg).Render(r.Context(), w)
+}
+
+func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		templates.Error("Method not allowed").Render(r.Context(), w)
+		return
+	}
+
+	// Parse password from form
+	if err := r.ParseForm(); err != nil {
+		w.WriteHeader(http.StatusBadRequest)
+		templates.Error("Invalid form data").Render(r.Context(), w)
+		return
+	}
+
+	password := r.FormValue("password")
+	correctPassword := os.Getenv("EDIT_PASSWORD")
+
+	if correctPassword == "" {
+		// Redirect back to login page with error
+		http.Redirect(w, r, "/login?error=config", http.StatusSeeOther)
+		return
+	}
+
+	// Use constant-time comparison to prevent timing attacks
+	if subtle.ConstantTimeCompare([]byte(password), []byte(correctPassword)) != 1 {
+		// Redirect back to login page with error
+		http.Redirect(w, r, "/login?error=password", http.StatusSeeOther)
+		return
+	}
+
+	// Generate secure session token
+	token, err := generateToken()
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		templates.Error("Failed to create session").Render(r.Context(), w)
+		return
+	}
+
+	// Store session with 24 hour expiry
+	s.sessions.create(token, time.Now().Add(24*time.Hour))
+
+	// Set HTTP-only cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    token,
+		HttpOnly: true,
+		Secure:   shouldUseSecureCookies(r),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   86400, // 24 hours
+		Path:     "/",
+	})
+
+	// Redirect to edit page
+	http.Redirect(w, r, "/edit", http.StatusSeeOther)
+}
+
+func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
+	if r.Method != http.MethodPost {
+		w.WriteHeader(http.StatusMethodNotAllowed)
+		templates.Error("Method not allowed").Render(r.Context(), w)
+		return
+	}
+
+	// Get and delete session token
+	if cookie, err := r.Cookie("session_token"); err == nil {
+		s.sessions.delete(cookie.Value)
+	}
+
+	// Clear the cookie
+	http.SetCookie(w, &http.Cookie{
+		Name:     "session_token",
+		Value:    "",
+		HttpOnly: true,
+		Secure:   shouldUseSecureCookies(r),
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   -1, // Delete cookie
+		Path:     "/",
+	})
+
+	// Redirect to home page
+	http.Redirect(w, r, "/", http.StatusSeeOther)
+}

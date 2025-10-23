@@ -1,39 +1,46 @@
 # --- Build Stage ---
-FROM node:lts AS builder
+FROM golang:1.25-alpine AS builder
+
+# Install build dependencies
+# gcc and musl-dev are required for CGO_ENABLED=1 (SQLite)
+RUN apk add --no-cache gcc musl-dev
 
 WORKDIR /app
 
-# Install frontend dependencies and build
-COPY frontend/package*.json ./frontend/
-RUN npm install --prefix frontend
-COPY frontend/ ./frontend/
-RUN npm run build --prefix frontend
+# Copy go mod files
+COPY go.mod go.sum ./
 
-# Install backend dependencies and build
-COPY backend/package*.json ./backend/
-RUN npm install --prefix backend
-COPY backend/ ./backend/
-RUN npm run build --prefix backend
+# Download dependencies
+RUN go mod download
 
-# Prune dev dependencies from backend node_modules
-RUN npm prune --prefix backend --omit=dev
+# Copy source code
+COPY . .
 
+# Build the application
+# CGO_ENABLED=1 is required for mattn/go-sqlite3 which uses C bindings
+# -ldflags="-w -s" strips debug info to reduce binary size
+RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o wishpage .
 
-# --- Backend Runtime Stage with Frontend ---
-FROM gcr.io/distroless/nodejs20-debian12 AS runtime
+# --- Runtime Stage ---
+FROM alpine:latest
+
+# Install runtime dependencies (SQLite)
+RUN apk add --no-cache ca-certificates sqlite-libs
 
 WORKDIR /app
 
-# Copy built app and package files from builder
-COPY --from=builder /app/backend/dist ./backend/dist
-COPY --from=builder /app/backend/package*.json ./backend/
-COPY --from=builder /app/backend/node_modules ./backend/node_modules
-COPY --from=builder /app/frontend/dist ./public
+# Copy the binary from builder
+COPY --from=builder /app/wishpage .
 
-# Expose backend port
-EXPOSE 3001
+# Create data directory for database
+RUN mkdir -p /data
 
-# Command to start backend server
-# Distroless images have a non-root user and a default entrypoint.
-# We just need to provide the path to our script.
-CMD ["backend/dist/index.js"]
+# Expose application port
+EXPOSE 3002
+
+# Set default environment variables
+ENV PORT=3002
+ENV DATABASE_PATH=/data/wishlist.db
+
+# Run the application
+CMD ["./wishpage"]

@@ -12,87 +12,87 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
-      with:
-        install: true
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+        with:
+          install: true
 
-    - name: Login to GitHub Container Registry
-      uses: docker/login-action@v3
-      with:
-        registry: ${{ env.DOCKER_REGISTRY }}
-        username: ${{ github.actor }}
-        password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Login to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.DOCKER_REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
 
-    # Build once per arch and push by digest to maximize cache reuse
-    - name: Build and push amd64 by digest
-      id: build_amd64
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        platforms: linux/amd64
-        push: true
-        provenance: false
-        labels: |
-          org.opencontainers.image.source=${{ github.repositoryUrl }}
-          org.opencontainers.image.version=${{ github.event.release.tag_name }}
-        outputs: type=image,name=${{ env.DOCKER_REGISTRY }}/${{ github.repository }},push-by-digest=true,name-canonical=true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      # Build once per arch and push by digest to maximize cache reuse
+      - name: Build and push amd64 by digest
+        id: build_amd64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64
+          push: true
+          provenance: false
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.version=${{ github.event.release.tag_name }}
+          outputs: type=image,name=${{ env.DOCKER_REGISTRY }}/${{ github.repository }},push-by-digest=true,name-canonical=true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    - name: Build and push arm64 by digest
-      id: build_arm64
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        platforms: linux/arm64
-        push: true
-        provenance: false
-        labels: |
-          org.opencontainers.image.source=${{ github.repositoryUrl }}
-          org.opencontainers.image.version=${{ github.event.release.tag_name }}
-        outputs: type=image,name=${{ env.DOCKER_REGISTRY }}/${{ github.repository }},push-by-digest=true,name-canonical=true
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Build and push arm64 by digest
+        id: build_arm64
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          push: true
+          provenance: false
+          labels: |
+            org.opencontainers.image.source=${{ github.repositoryUrl }}
+            org.opencontainers.image.version=${{ github.event.release.tag_name }}
+          outputs: type=image,name=${{ env.DOCKER_REGISTRY }}/${{ github.repository }},push-by-digest=true,name-canonical=true
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
 
-    # Create and push multi-arch manifests for the release tag and latest
-    - name: Create manifest for release tag
-      run: |
-        AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
-        ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
+      # Create and push multi-arch manifests for the release tag and latest
+      - name: Create manifest for release tag
+        run: |
+          AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
+          ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
 
-        IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
-        TAG=${{ github.event.release.tag_name }}
+          IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
+          TAG=${{ github.event.release.tag_name }}
 
-        docker buildx imagetools create \
-          -t ${IMAGE}:${TAG} \
-          ${IMAGE}@${AMD64_DIGEST} \
-          ${IMAGE}@${ARM64_DIGEST}
+          docker buildx imagetools create \
+            -t ${IMAGE}:${TAG} \
+            ${IMAGE}@${AMD64_DIGEST} \
+            ${IMAGE}@${ARM64_DIGEST}
 
-    - name: Create manifest for latest
-      run: |
-        AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
-        ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
+      - name: Create manifest for latest
+        run: |
+          AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
+          ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
 
-        IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
+          IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
 
-        docker buildx imagetools create \
-          -t ${IMAGE}:latest \
-          ${IMAGE}@${AMD64_DIGEST} \
-          ${IMAGE}@${ARM64_DIGEST}
+          docker buildx imagetools create \
+            -t ${IMAGE}:latest \
+            ${IMAGE}@${AMD64_DIGEST} \
+            ${IMAGE}@${ARM64_DIGEST}
 
-    # Also publish explicit arch tags for deterministic pulls
-    - name: Tag arch-specific latest for convenience
-      run: |
-        AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
-        ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
-        IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
+      # Also publish explicit arch tags for deterministic pulls
+      - name: Tag arch-specific latest for convenience
+        run: |
+          AMD64_DIGEST=${{ steps.build_amd64.outputs.digest }}
+          ARM64_DIGEST=${{ steps.build_arm64.outputs.digest }}
+          IMAGE=${{ env.DOCKER_REGISTRY }}/${{ github.repository }}
 
-        docker buildx imagetools create -t ${IMAGE}:latest-amd64 ${IMAGE}@${AMD64_DIGEST}
-        docker buildx imagetools create -t ${IMAGE}:latest-arm64 ${IMAGE}@${ARM64_DIGEST}
+          docker buildx imagetools create -t ${IMAGE}:latest-amd64 ${IMAGE}@${AMD64_DIGEST}
+          docker buildx imagetools create -t ${IMAGE}:latest-arm64 ${IMAGE}@${ARM64_DIGEST}

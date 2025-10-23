@@ -7,23 +7,16 @@
 ehthumbs.db
 Thumbs.db
 
-# Node.js and npm artifacts
-node_modules
-npm-debug.log
-yarn-error.log
-
-# Frontend specific (assuming path/ is your frontend)
-frontend/node_modules
-frontend/dist
-frontend/.env
-frontend/.cache
-.parcel-cache
-.vite-cache
-
-# Backend specific
-backend/node_modules
-backend/dist
-backend/.env
+# Go specific
+*.exe
+*.exe~
+*.dll
+*.so
+*.dylib
+*.test
+*.out
+/wishpage
+*.db
 
 # IDE and editor specific files
 .idea
@@ -50,3 +43,6 @@ ehthumbs.db
 Desktop.ini
 $RECYCLE.BIN/
 .aider*
+
+# Environment files
+.env

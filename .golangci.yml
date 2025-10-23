@@ -1,0 +1,58 @@
+run:
+  timeout: 5m
+  tests: true
+
+linters:
+  enable:
+    - errcheck       # Check for unchecked errors
+    - gosimple       # Simplify code
+    - govet          # Vet examines Go source code
+    - ineffassign    # Detect ineffectual assignments
+    - staticcheck    # Static analysis checks
+    - typecheck      # Type-check code
+    - unused         # Check for unused constants, variables, functions and types
+    - gofmt          # Check code formatting
+    - goimports      # Check import formatting
+    - misspell       # Check for misspelled words
+    - gocritic       # Comprehensive Go source code linter
+    - revive         # Fast linter with configurable rules
+    - gosec          # Security-focused linter
+    - bodyclose      # Check HTTP response body is closed
+    - noctx          # Check for HTTP requests without context
+    - errname        # Check error naming conventions
+    - errorlint      # Find code that will cause problems with error wrapping
+    - exportloopref  # Check for pointers to loop variables
+
+linters-settings:
+  errcheck:
+    check-blank: true
+  
+  govet:
+    enable-all: true
+  
+  gofmt:
+    simplify: true
+  
+  revive:
+    confidence: 0.8
+  
+  gosec:
+    excludes:
+      - G404  # Use of weak random number generator (crypto/rand not needed for this app)
+
+issues:
+  exclude-rules:
+    # Exclude some linters from running on tests files
+    - path: _test\.go
+      linters:
+        - gosec
+        - errcheck
+    
+    # Exclude known false positives
+    - text: "G304: Potential file inclusion"
+      linters:
+        - gosec
+  
+  max-issues-per-linter: 0
+  max-same-issues: 0
+

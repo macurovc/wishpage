@@ -1,28 +1,51 @@
 name: Dry-run Multi-Arch Build
 
+# This workflow tests multi-architecture Docker builds without pushing to registry.
+# Runs automatically when Dockerfile or Docker-related files change in PRs.
+# Can also be triggered manually from the GitHub Actions UI.
+
 on:
-  workflow_dispatch: {}   # manual run from GitHub UI
+  workflow_dispatch: {} # manual run from GitHub UI
+  pull_request:
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
+      - ".github/workflows/docker-build.yml"
+      - ".github/workflows/dry-run-build.yml"
+  push:
+    branches: [main]
+    paths:
+      - "Dockerfile"
+      - ".dockerignore"
 
 jobs:
   dry-run-build:
     runs-on: ubuntu-latest
     steps:
-    - name: Checkout
-      uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-    - name: Set up QEMU
-      uses: docker/setup-qemu-action@v3
+      - name: Log build trigger
+        run: |
+          echo "Testing multi-arch Docker build"
+          echo "Triggered by: ${{ github.event_name }}"
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            echo "PR #${{ github.event.pull_request.number }}: ${{ github.event.pull_request.title }}"
+          fi
 
-    - name: Set up Docker Buildx
-      uses: docker/setup-buildx-action@v3
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
 
-    - name: Build both architectures (no push)
-      uses: docker/build-push-action@v6
-      with:
-        context: .
-        platforms: linux/amd64,linux/arm64
-        push: false
-        load: false
-        provenance: false
-        cache-from: type=gha
-        cache-to: type=gha,mode=max
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build both architectures (no push)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: false
+          load: false
+          provenance: false
+          cache-from: type=gha
+          cache-to: type=gha,mode=max

@@ -1,0 +1,272 @@
+package templates
+
+import "wishpage/models"
+import "strconv"
+import "fmt"
+
+templ Edit(items []models.Item, familyMembers []models.FamilyMember) {
+	@layout("Edit Wishlist", true) {
+        <!-- Done Editing Button -->
+        <form action="/api/logout" method="POST" style="display: inline;">
+            <button type="submit" class="exit-edit-mode" title="Switch back to view mode">
+                ✓
+                <span class="exit-text-full">You're in editing mode - Click here when done</span>
+                <span class="exit-text-short">Done Editing</span>
+            </button>
+        </form>
+
+        <div class="app-header">
+            <div class="d-flex align-items-center justify-content-between gap-3">
+                <h1 class="m-0">
+                    🎁
+                    Family Wishlist
+                </h1>
+            </div>
+        </div>
+
+        <!-- Family Members Sections -->
+        if len(familyMembers) == 0 {
+            <div class="empty-state">
+                👥
+                <h3>No family members yet</h3>
+                <p>Add your first family member below to get started!</p>
+            </div>
+        } else {
+            for _, member := range familyMembers {
+                @FamilyMemberSection(member, items)
+            }
+        }
+
+        <!-- Add Family Member Form -->
+        @AddFamilyMemberForm()
+	}
+}
+
+templ AddFamilyMemberForm() {
+    <div class="add-family-member-section">
+        <form class="add-family-form" hx-post="/api/family_members" hx-swap="beforebegin" autocomplete="off" hx-on::after-request="this.reset()">
+            <div class="add-family-header">
+                ＋ Add Family Member
+            </div>
+            <div class="add-family-body">
+                <div class="d-flex gap-2 align-items-center">
+                    <input 
+                        type="text" 
+                        name="name" 
+                        class="form-control" 
+                        placeholder="Enter name..." 
+                        autocomplete="off"
+                        required
+                    />
+                    <button type="submit" class="btn btn-primary">
+                        Add
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+}
+
+templ FamilyMemberSection(member models.FamilyMember, allItems []models.Item) {
+    <details class="family-section">
+        <summary class="family-section-header">
+            <div class="family-section-title">
+                <span class="family-icon">👤</span>
+                <h3>{ member.Name }</h3>
+                <span class="item-count">
+                    { strconv.Itoa(len(getItemsForMember(allItems, member.ID))) } 
+                    if len(getItemsForMember(allItems, member.ID)) == 1 {
+                        item
+                    } else {
+                        items
+                    }
+                </span>
+            </div>
+            <button 
+                type="button"
+                class="btn btn-sm btn-outline-danger delete-member-btn"
+                hx-delete={ "/api/family_members/" + strconv.Itoa(member.ID) }
+                hx-confirm="Delete this family member and all their items?"
+                hx-target="closest .family-section"
+                hx-swap="outerHTML"
+                onclick="event.stopPropagation()">
+                Delete
+            </button>
+        </summary>
+
+        <div class="family-section-content">
+            <!-- Add Item Form -->
+            <div class="add-item-form-container mb-4">
+                <form class="add-item-form" hx-post="/api/items" hx-target={ "#items-for-member-" + strconv.Itoa(member.ID) } hx-swap="innerHTML" hx-on::after-request="if(event.detail.successful) this.reset()" autocomplete="off" data-1p-ignore data-lpignore="true" data-form-type="other">
+                    <input type="hidden" name="family_member_id" value={ strconv.Itoa(member.ID) }/>
+                    <div class="add-item-form-header">
+                        ＋ Add Item for { member.Name }
+                    </div>
+                    <div class="add-item-form-body">
+                        <div class="row g-3">
+                            <div class="col-12">
+                                <label for={ "new-item-name-" + strconv.Itoa(member.ID) } class="form-label">Item Name</label>
+                                <input 
+                                    type="text" 
+                                    class="form-control" 
+                                    id={ "new-item-name-" + strconv.Itoa(member.ID) }
+                                    name="name" 
+                                    placeholder="e.g., Blue sweater, Board game, Book..." 
+                                    autocomplete="off"
+                                    required
+                                />
+                            </div>
+                            <div class="col-md-6">
+                                <label for={ "new-item-link-" + strconv.Itoa(member.ID) } class="form-label">Link (optional)</label>
+                                <input 
+                                    type="url" 
+                                    class="form-control" 
+                                    id={ "new-item-link-" + strconv.Itoa(member.ID) }
+                                    name="link" 
+                                    placeholder="https://..." 
+                                    autocomplete="off"
+                                />
+                            </div>
+                            <div class="col-md-6">
+                                <label for={ "new-item-price-" + strconv.Itoa(member.ID) } class="form-label">Price (optional)</label>
+                                <div class="input-group">
+                                    <span class="input-group-text">€</span>
+                                    <input 
+                                        type="number" 
+                                        class="form-control" 
+                                        id={ "new-item-price-" + strconv.Itoa(member.ID) }
+                                        name="price" 
+                                        placeholder="0.00" 
+                                        step="0.01" 
+                                        min="0"
+                                        autocomplete="off"
+                                    />
+                                </div>
+                            </div>
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary w-100">
+                                    ＋ Add Item
+                                </button>
+                            </div>
+                        </div>
+                    </div>
+                </form>
+            </div>
+
+            <!-- Items List -->
+            <div id={ "items-for-member-" + strconv.Itoa(member.ID) } class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                @ItemsForMember(getItemsForMember(allItems, member.ID))
+            </div>
+        </div>
+    </details>
+}
+
+func getItemsForMember(allItems []models.Item, memberID int) []models.Item {
+    var filtered []models.Item
+    for _, item := range allItems {
+        if item.FamilyMemberID == memberID {
+            filtered = append(filtered, item)
+        }
+    }
+    return filtered
+}
+
+templ ItemsForMember(items []models.Item) {
+    if len(items) == 0 {
+        <div class="col-12">
+            <div class="empty-state-small">
+                📭 No items yet - add one above!
+            </div>
+        </div>
+    }
+    for _, item := range items {
+        @itemCardEdit(item)
+    }
+}
+
+templ itemCardEdit(item models.Item) {
+    <div class="col">
+        <div class={ "card h-100", templ.KV("reserved-item", item.Reserved) } data-item-id={ strconv.Itoa(item.ID) }>
+            if item.Reserved {
+                <span class="reserved-badge">Reserved</span>
+            }
+            <div class="card-body">
+                <h5 class="card-title mb-3">
+                    if item.Reserved {
+                        <del>{ item.Name }</del>
+                    } else {
+                        { item.Name }
+                    }
+                </h5>
+                
+                if item.Price != nil {
+                    <div class="item-price mb-2">
+                        { fmt.Sprintf("€%.2f", *item.Price) }
+                    </div>
+                }
+                
+                if item.Link != nil && *item.Link != "" {
+                    <a href={ templ.URL(*item.Link) } target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link p-0 mb-3">
+                        🔗
+                        View Item
+                    </a>
+                }
+
+                <!-- Edit form (always visible in edit mode) -->
+                <form class="edit-form mb-3"
+                      hx-put={ "/api/items/" + strconv.Itoa(item.ID) }
+                      hx-target={ "#items-for-member-" + strconv.Itoa(item.FamilyMemberID) }
+                      autocomplete="off">
+                    <div class="mb-2">
+                        <input type="text" name="name" class="form-control form-control-sm" 
+                               placeholder="Item name" value={ item.Name } autocomplete="off" required/>
+                    </div>
+                    <div class="mb-2">
+                        <input type="number" name="price" class="form-control form-control-sm" 
+                               placeholder="Price" step="0.01" min="0" autocomplete="off"
+                               value={ func() string { if item.Price != nil { return fmt.Sprintf("%.2f", *item.Price) }; return "" }() }/>
+                    </div>
+                    <div class="mb-2">
+                        <input type="url" name="link" class="form-control form-control-sm" 
+                               placeholder="Link (optional)" autocomplete="off"
+                               value={ func() string { if item.Link != nil { return *item.Link }; return "" }() }/>
+                    </div>
+                    <div class="d-flex gap-2">
+                        <button type="submit" class="btn btn-success btn-sm">
+                            ✓
+                            Save
+                        </button>
+                    </div>
+                </form>
+
+                <div class="d-flex gap-2 mt-3">
+                    if item.Reserved {
+                        <button 
+                            class="btn btn-outline-secondary btn-sm flex-fill"
+                            hx-put={ "/api/items/" + strconv.Itoa(item.ID) + "/unreserve" }
+                            hx-target={ "#items-for-member-" + strconv.Itoa(item.FamilyMemberID) }
+                            hx-confirm="Un-reserve this item?">
+                            Un-reserve
+                        </button>
+                    } else {
+                        <button 
+                            class="btn btn-outline-primary btn-sm flex-fill"
+                            hx-put={ "/api/items/" + strconv.Itoa(item.ID) + "/reserve" }
+                            hx-target={ "#items-for-member-" + strconv.Itoa(item.FamilyMemberID) }
+                            hx-confirm="Reserve this item?">
+                            Reserve
+                        </button>
+                    }
+                    
+                    <button 
+                        class="btn btn-outline-danger btn-sm"
+                        hx-delete={ "/api/items/" + strconv.Itoa(item.ID) }
+                        hx-target={ "#items-for-member-" + strconv.Itoa(item.FamilyMemberID) }
+                        hx-confirm="Delete this item permanently?">
+                        Delete
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+}
