@@ -1,58 +1,133 @@
+version: "2"
+
 run:
   timeout: 5m
   tests: true
 
 linters:
   enable:
-    - errcheck       # Check for unchecked errors
-    - gosimple       # Simplify code
-    - govet          # Vet examines Go source code
-    - ineffassign    # Detect ineffectual assignments
-    - staticcheck    # Static analysis checks
-    - typecheck      # Type-check code
-    - unused         # Check for unused constants, variables, functions and types
-    - gofmt          # Check code formatting
-    - goimports      # Check import formatting
-    - misspell       # Check for misspelled words
-    - gocritic       # Comprehensive Go source code linter
-    - revive         # Fast linter with configurable rules
-    - gosec          # Security-focused linter
-    - bodyclose      # Check HTTP response body is closed
-    - noctx          # Check for HTTP requests without context
-    - errname        # Check error naming conventions
-    - errorlint      # Find code that will cause problems with error wrapping
-    - exportloopref  # Check for pointers to loop variables
+    # Error Handling
+    - errcheck       # Unchecked errors
+    - errorlint      # Error wrapping issues
+    - errname        # Error naming conventions
+    
+    # Code Quality
+    - govet          # Official Go analysis
+    - staticcheck    # Comprehensive static analysis
+    - unused         # Unused code
+    - ineffassign    # Ineffectual assignments
+    - unconvert      # Unnecessary conversions
+    - unparam        # Unused parameters
+    
+    # Bugs & Correctness
+    - copyloopvar    # Loop variable capturing
+    - nilnil         # Prevent (nil, nil) returns
+    - nilerr         # Check nil errors
+    
+    # Complexity
+    - gocyclo        # Cyclomatic complexity
+    - funlen         # Function length
+    - nestif         # Nested if depth
+    
+    # Code Smells
+    - goconst        # Repeated strings → constants
+    - dupl           # Code duplication
+    - gocritic       # Comprehensive linting
+    - revive         # Fast, configurable linter
+    
+    # Security
+    - gosec          # Security issues
+    
+    # HTTP/Network
+    - bodyclose      # HTTP response body closure
+    - noctx          # HTTP requests without context
+    
+    # Style & Readability
+    - whitespace     # Whitespace issues
+    - predeclared    # Shadows of predeclared identifiers
+    
+    # Documentation & Naming
+    - misspell       # Spelling mistakes
+    - godot          # Comment punctuation
+    
+    # Linter Usage
+    - nolintlint     # Proper nolint usage
 
 linters-settings:
   errcheck:
     check-blank: true
+    check-type-assertions: true
   
   govet:
     enable-all: true
   
-  gofmt:
-    simplify: true
-  
   revive:
     confidence: 0.8
+    rules:
+      # Disable overly strict rules for pragmatic development
+      - name: package-comments
+        disabled: true
+      - name: exported
+        disabled: true  # Too noisy for small projects
+      - name: cognitive-complexity
+        disabled: true
+      - name: cyclomatic
+        disabled: true  # Using gocyclo instead
+      - name: function-length
+        disabled: true  # Using funlen instead
+      - name: max-public-structs
+        disabled: true
+      - name: file-header
+        disabled: true
   
   gosec:
     excludes:
-      - G404  # Use of weak random number generator (crypto/rand not needed for this app)
+      - G404  # Weak random OK for non-crypto use (session IDs use crypto/rand)
+  
+  gocyclo:
+    min-complexity: 15  # Flag functions with complexity > 15
+  
+  funlen:
+    lines: 80          # Max function length (encourage smaller functions)
+    statements: 50     # Max statements per function
+  
+  nestif:
+    min-complexity: 6  # Max nesting depth
+  
+  goconst:
+    min-len: 3         # Minimum string length to check
+    min-occurrences: 3 # Minimum occurrences to flag
+  
+  nolintlint:
+    allow-unused: false
+    require-explanation: true
+    require-specific: true
+  
+  gocritic:
+    enabled-tags:
+      - diagnostic
+      - style
+      - performance
+    disabled-checks:
+      - hugeParam  # Sometimes large structs are passed by value intentionally
+      - rangeValCopy  # Sometimes acceptable for readability
 
 issues:
   exclude-rules:
-    # Exclude some linters from running on tests files
+    # Allow certain things in test files only
     - path: _test\.go
       linters:
-        - gosec
-        - errcheck
+        - gosec        # Security checks less critical in tests
+        - funlen       # Test functions can be longer
+        - dupl         # Some duplication OK in tests
+        - gocyclo      # Test functions can be more complex
     
-    # Exclude known false positives
-    - text: "G304: Potential file inclusion"
+    # Specific justified exclusions
+    - text: "G304: Potential file inclusion via variable"
       linters:
         - gosec
+      path: main\.go$  # Static file serving is intentional
   
+  # Show all issues
   max-issues-per-linter: 0
   max-same-issues: 0
-

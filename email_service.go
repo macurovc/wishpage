@@ -1,30 +1,33 @@
 package main
 
 import (
-	"bytes"
+	"context"
 	"crypto/tls"
 	"fmt"
 	"html/template"
 	"log"
+	"net"
 	"net/smtp"
 	"os"
 	"strconv"
-	"strings"
+	"time"
 )
 
-// emailService handles sending email notifications
+// emailService handles sending email notifications.
 type emailService struct {
-	enabled       bool
-	host          string
-	port          int
-	user          string
-	password      string
-	from          string
-	to            string
+	host     string
+	from     string
+	to       string
+	user     string
+	password string
+	port     int
+	enabled  bool
+	// skipTLSVerify allows disabling TLS verification for testing
+	// #nosec G402 -- This is configurable and defaults to false (secure)
 	skipTLSVerify bool
 }
 
-// newEmailService creates and initializes an email service from environment variables
+// newEmailService creates and initializes an email service from environment variables.
 func newEmailService() *emailService {
 	user := os.Getenv("EMAIL_USER")
 	password := os.Getenv("EMAIL_PASS")
@@ -83,7 +86,7 @@ func newEmailService() *emailService {
 	return service
 }
 
-// verify checks if the email service can connect to the SMTP server
+// verify checks if the email service can connect to the SMTP server.
 func (e *emailService) verify() error {
 	if !e.enabled {
 		return fmt.Errorf("email service is not enabled")
@@ -94,10 +97,15 @@ func (e *emailService) verify() error {
 	if err != nil {
 		return fmt.Errorf("failed to connect to SMTP server: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			log.Printf("Error closing SMTP client: %v", err)
+		}
+	}()
 
 	// Start TLS if port is 587
 	if e.port == 587 {
+		// #nosec G402 -- TLS verification is enabled by default; skipTLSVerify is only for testing
 		tlsConfig := &tls.Config{
 			ServerName:         e.host,
 			InsecureSkipVerify: e.skipTLSVerify,
@@ -110,7 +118,7 @@ func (e *emailService) verify() error {
 	return nil
 }
 
-// sendNotificationEmail sends an email with the given subject and HTML content
+// sendNotificationEmail sends an email with the given subject and HTML content.
 func (e *emailService) sendNotificationEmail(subject, htmlContent string) {
 	if !e.enabled {
 		log.Println("Email service is not enabled. Skipping email notification.")
@@ -149,27 +157,36 @@ func (e *emailService) sendNotificationEmail(subject, htmlContent string) {
 	log.Printf("Notification email sent successfully: %s", subject)
 }
 
-// sendMailTLS sends email using TLS connection (for port 465)
+// sendMailTLS sends email using TLS connection (for port 465).
 func (e *emailService) sendMailTLS(addr string, auth smtp.Auth, from string, to []string, msg []byte) error {
+	// #nosec G402 -- TLS verification is enabled by default; skipTLSVerify is only for testing
 	// Create TLS configuration
 	tlsConfig := &tls.Config{
 		ServerName:         e.host,
 		InsecureSkipVerify: e.skipTLSVerify,
 	}
 
-	// Connect to server with TLS
-	conn, err := tls.Dial("tcp", addr, tlsConfig)
+	// Connect to server with TLS using context-aware dialing
+	conn, err := e.dialTLSWithContext(addr, tlsConfig)
 	if err != nil {
 		return fmt.Errorf("failed to dial with TLS: %w", err)
 	}
-	defer conn.Close()
+	defer func() {
+		if err := conn.Close(); err != nil {
+			log.Printf("Error closing TLS connection: %v", err)
+		}
+	}()
 
 	// Create SMTP client
 	client, err := smtp.NewClient(conn, e.host)
 	if err != nil {
 		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
-	defer client.Close()
+	defer func() {
+		if err := client.Close(); err != nil {
+			log.Printf("Error closing SMTP client: %v", err)
+		}
+	}()
 
 	// Authenticate
 	if auth != nil {
@@ -195,13 +212,42 @@ func (e *emailService) sendMailTLS(addr string, auth smtp.Auth, from string, to 
 	if err != nil {
 		return fmt.Errorf("failed to get data writer: %w", err)
 	}
-	defer writer.Close()
+	defer func() {
+		if err := writer.Close(); err != nil {
+			log.Printf("Error closing data writer: %v", err)
+		}
+	}()
 
 	if _, err = writer.Write(msg); err != nil {
 		return fmt.Errorf("failed to write message: %w", err)
 	}
 
 	return nil
+}
+
+// dialTLSWithContext establishes a TLS connection using context-aware dialing.
+func (e *emailService) dialTLSWithContext(addr string, tlsConfig *tls.Config) (net.Conn, error) {
+	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	defer cancel()
+
+	dialer := &net.Dialer{
+		Timeout: 30 * time.Second,
+	}
+
+	conn, err := dialer.DialContext(ctx, "tcp", addr)
+	if err != nil {
+		return nil, err
+	}
+
+	tlsConn := tls.Client(conn, tlsConfig)
+	if err := tlsConn.HandshakeContext(ctx); err != nil {
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Error closing connection after handshake failure: %v", closeErr)
+		}
+		return nil, err
+	}
+
+	return tlsConn, nil
 }
 
 // Helper functions for generating email content
@@ -276,51 +322,4 @@ func (e *emailService) notifyFamilyMemberDeleted(name string) {
 		template.HTMLEscapeString(name),
 	)
 	e.sendNotificationEmail("Family Member Deleted", htmlContent)
-}
-
-// Helper function to format link text
-func formatLink(link string) string {
-	if link == "" {
-		return "N/A"
-	}
-	// Escape and truncate long links for display
-	escaped := template.HTMLEscapeString(link)
-	if len(escaped) > 50 {
-		return escaped[:50] + "..."
-	}
-	return escaped
-}
-
-// Helper function to clean and validate email addresses
-func cleanEmail(email string) string {
-	return strings.TrimSpace(strings.ToLower(email))
-}
-
-// buildHTMLEmail creates a properly formatted HTML email with a template
-func buildHTMLEmail(content string) string {
-	var buf bytes.Buffer
-	tmpl := `
-<!DOCTYPE html>
-<html>
-<head>
-	<meta charset="UTF-8">
-	<style>
-		body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; }
-		ul { background-color: #f4f4f4; padding: 20px; border-radius: 5px; }
-		li { margin: 10px 0; }
-		strong { color: #2c3e50; }
-		a { color: #3498db; text-decoration: none; }
-		a:hover { text-decoration: underline; }
-	</style>
-</head>
-<body>
-	%s
-	<p style="margin-top: 30px; color: #7f8c8d; font-size: 12px;">
-		This is an automated notification from your Wishlist application.
-	</p>
-</body>
-</html>
-`
-	fmt.Fprintf(&buf, tmpl, content)
-	return buf.String()
 }

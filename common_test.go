@@ -19,13 +19,17 @@ func newTestServer(t *testing.T) *server {
 
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err, "Failed to open test database")
-	t.Cleanup(func() { db.Close() })
+	t.Cleanup(func() {
+		if err := db.Close(); err != nil {
+			t.Logf("Error closing test database: %v", err)
+		}
+	})
 
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	_, err = db.ExecContext(t.Context(), "PRAGMA foreign_keys = ON")
 	require.NoError(t, err, "Failed to enable foreign keys")
 
 	// Database initialization (create tables if they don't exist)
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
         CREATE TABLE IF NOT EXISTS family_members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             name TEXT NOT NULL UNIQUE
@@ -33,7 +37,7 @@ func newTestServer(t *testing.T) *server {
     `)
 	require.NoError(t, err, "Failed to create family_members table")
 
-	_, err = db.Exec(`
+	_, err = db.ExecContext(t.Context(), `
         CREATE TABLE IF NOT EXISTS items (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             family_member_id INTEGER NOT NULL,
@@ -56,11 +60,11 @@ func newTestServer(t *testing.T) *server {
 	return s
 }
 
-// createFamilyMember is a test helper to create a family member in the database
+// createFamilyMember is a test helper to create a family member in the database.
 func createFamilyMember(t *testing.T, s *server, name string) int {
 	t.Helper()
 
-	result, err := s.db.Exec("INSERT INTO family_members (name) VALUES (?)", name)
+	result, err := s.db.ExecContext(t.Context(), "INSERT INTO family_members (name) VALUES (?)", name)
 	require.NoError(t, err, "Failed to create family member %q", name)
 
 	id, err := result.LastInsertId()
@@ -69,21 +73,16 @@ func createFamilyMember(t *testing.T, s *server, name string) int {
 	return int(id)
 }
 
-// createItem is a test helper to create an item in the database
-func createItem(t *testing.T, s *server, familyMemberID int, name string, price *float64) int {
+// createItem is a test helper to create an item in the database.
+func createItem(t *testing.T, s *server, familyMemberID int, name string, price *float64) {
 	t.Helper()
 
-	result, err := s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)",
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)",
 		familyMemberID, name, price)
 	require.NoError(t, err, "Failed to create item %q", name)
-
-	id, err := result.LastInsertId()
-	require.NoError(t, err, "Failed to get last insert ID")
-
-	return int(id)
 }
 
-// loginAndGetCookie is a test helper to login and get a session cookie
+// loginAndGetCookie is a test helper to login and get a session cookie.
 func loginAndGetCookie(t *testing.T, s *server, password string) *http.Cookie {
 	t.Helper()
 

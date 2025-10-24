@@ -30,7 +30,6 @@ func main() {
 	if err != nil {
 		log.Fatalf("Failed to initialize database: %v", err)
 	}
-	defer db.Close()
 	log.Println("Database initialized successfully")
 
 	sessions := newSessionStore()
@@ -60,8 +59,18 @@ func main() {
 		port = "3002"
 	}
 
+	// Create HTTP server with timeouts for security
+	srv := &http.Server{
+		Addr:           ":" + port,
+		Handler:        s.mux,
+		ReadTimeout:    15 * time.Second,
+		WriteTimeout:   15 * time.Second,
+		IdleTimeout:    60 * time.Second,
+		MaxHeaderBytes: 1 << 20, // 1 MB
+	}
+
 	log.Printf("Server listening on http://localhost:%s", port)
-	if err := http.ListenAndServe(":"+port, s.mux); err != nil {
+	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
 }

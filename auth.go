@@ -1,9 +1,11 @@
+// Package main implements a wishlist web application with authentication and email notifications.
 package main
 
 import (
 	"crypto/rand"
 	"crypto/subtle"
 	"encoding/base64"
+	"log"
 	"net/http"
 	"os"
 	"strings"
@@ -14,7 +16,7 @@ import (
 )
 
 // shouldUseSecureCookies determines if cookies should have the Secure flag
-// based on whether the request came via HTTPS (directly or through a proxy)
+// based on whether the request came via HTTPS (directly or through a proxy).
 func shouldUseSecureCookies(r *http.Request) bool {
 	// Allow forcing secure cookies for testing/special cases
 	if os.Getenv("FORCE_SECURE_COOKIES") == "true" {
@@ -41,10 +43,10 @@ func shouldUseSecureCookies(r *http.Request) bool {
 	return false
 }
 
-// Session management
+// Session management.
 type sessionStore struct {
-	mu       sync.RWMutex
 	sessions map[string]time.Time // token -> expiry
+	mu       sync.RWMutex
 }
 
 func newSessionStore() *sessionStore {
@@ -86,7 +88,7 @@ func (s *sessionStore) cleanup() {
 	}
 }
 
-// generateToken creates a secure random token for session management
+// generateToken creates a secure random token for session management.
 func generateToken() (string, error) {
 	b := make([]byte, 32)
 	if _, err := rand.Read(b); err != nil {
@@ -95,7 +97,7 @@ func generateToken() (string, error) {
 	return base64.URLEncoding.EncodeToString(b), nil
 }
 
-// requireAuth is middleware that requires a valid session cookie
+// requireAuth is middleware that requires a valid session cookie.
 func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get session cookie
@@ -105,7 +107,9 @@ func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 			// For API requests, return error
 			if strings.HasPrefix(r.URL.Path, "/api/") {
 				w.WriteHeader(http.StatusUnauthorized)
-				templates.Error("Unauthorized: Please log in").Render(r.Context(), w)
+				if err := templates.Error("Unauthorized: Please log in").Render(r.Context(), w); err != nil {
+					log.Printf("Error rendering template: %v", err)
+				}
 				return
 			}
 			http.Redirect(w, r, "/login", http.StatusSeeOther)
@@ -132,20 +136,26 @@ func (s *server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	// Get error message from query params
 	errorMsg := r.URL.Query().Get("error")
 
-	templates.Login(errorMsg).Render(r.Context(), w)
+	if err := templates.Login(errorMsg).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }
 
 func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	// Parse password from form
 	if err := r.ParseForm(); err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid form data").Render(r.Context(), w)
+		if err := templates.Error("Invalid form data").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -169,7 +179,9 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	token, err := generateToken()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to create session").Render(r.Context(), w)
+		if err := templates.Error("Failed to create session").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -194,7 +206,9 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	if r.Method != http.MethodPost {
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 

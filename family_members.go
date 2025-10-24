@@ -20,7 +20,9 @@ func (s *server) handleFamilyMembers(w http.ResponseWriter, r *http.Request) {
 		s.requireAuth(s.createFamilyMember)(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	}
 }
 
@@ -32,7 +34,9 @@ func (s *server) handleFamilyMembersID(w http.ResponseWriter, r *http.Request) {
 		s.requireAuth(s.deleteFamilyMember)(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	}
 }
 
@@ -41,7 +45,11 @@ func (s *server) getAllFamilyMembers(ctx context.Context) ([]models.FamilyMember
 	if err != nil {
 		return nil, fmt.Errorf("failed to query family members: %w", err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	members := []models.FamilyMember{}
 	for rows.Next() {
@@ -58,7 +66,9 @@ func (s *server) getFamilyMembers(w http.ResponseWriter, r *http.Request) {
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch family members").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 	w.Header().Set("Content-Type", "application/json")
@@ -71,7 +81,9 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	data, err := parseRequestBody(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid request body").Render(r.Context(), w)
+		if err := templates.Error("Invalid request body").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -81,21 +93,15 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(name) > 200 {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Name too long (max 200 characters)").Render(r.Context(), w)
+		if err := templates.Error("Name too long (max 200 characters)").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	result, err := s.db.ExecContext(r.Context(), "INSERT INTO family_members (name) VALUES (?)", name)
 	if err != nil {
-		// Check for unique constraint violation
-		if strings.Contains(err.Error(), "UNIQUE constraint failed") {
-			w.WriteHeader(http.StatusBadRequest)
-			templates.Error("A family member with this name already exists").Render(r.Context(), w)
-		} else {
-			log.Printf("Error creating family member: %v", err)
-			w.WriteHeader(http.StatusInternalServerError)
-			templates.Error("Failed to add family member").Render(r.Context(), w)
-		}
+		s.handleFamilyMemberInsertError(w, r, err)
 		return
 	}
 
@@ -103,13 +109,15 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	newID, err := result.LastInsertId()
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to get new member ID").Render(r.Context(), w)
+		if err := templates.Error("Failed to get new member ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	newMember := models.FamilyMember{
-		ID:   int(newID),
 		Name: name,
+		ID:   int(newID),
 	}
 
 	// Send email notification
@@ -118,14 +126,35 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	// Render just the new family section
 	// The hx-swap="beforebegin" on the form will insert it before the add form
 	w.Header().Set("Content-Type", "text/html")
-	templates.FamilyMemberSection(newMember, []models.Item{}).Render(r.Context(), w)
+	if err := templates.FamilyMemberSection(newMember, []models.Item{}).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
+}
+
+// handleFamilyMemberInsertError handles database errors when inserting a family member.
+func (s *server) handleFamilyMemberInsertError(w http.ResponseWriter, r *http.Request, err error) {
+	if strings.Contains(err.Error(), "UNIQUE constraint failed") {
+		w.WriteHeader(http.StatusBadRequest)
+		if renderErr := templates.Error("A family member with this name already exists").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
+		}
+		return
+	}
+
+	log.Printf("Error creating family member: %v", err)
+	w.WriteHeader(http.StatusInternalServerError)
+	if renderErr := templates.Error("Failed to add family member").Render(r.Context(), w); renderErr != nil {
+		log.Printf("Error rendering template: %v", renderErr)
+	}
 }
 
 func (s *server) deleteFamilyMember(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/family_members/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid family member ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid family member ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -140,7 +169,9 @@ func (s *server) deleteFamilyMember(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error deleting family member %d: %v", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to delete family member").Render(r.Context(), w)
+		if err := templates.Error("Failed to delete family member").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -157,28 +188,36 @@ func (s *server) updateFamilyMember(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/family_members/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid family member ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid family member ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	data, err := parseRequestBody(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid request body").Render(r.Context(), w)
+		if err := templates.Error("Invalid request body").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	name := data["name"]
 	if strings.TrimSpace(name) == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Name is required").Render(r.Context(), w)
+		if err := templates.Error("Name is required").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	if _, err := s.db.ExecContext(r.Context(), "UPDATE family_members SET name = ? WHERE id = ?", name, id); err != nil {
 		log.Printf("Error updating family member %d: %v", id, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to update family member").Render(r.Context(), w)
+		if err := templates.Error("Failed to update family member").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 

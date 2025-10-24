@@ -49,7 +49,7 @@ func TestCreateFamilyMember(t *testing.T) {
 
 	// Check if the member was created
 	var name string
-	err := s.db.QueryRow("SELECT name FROM family_members WHERE name = 'new member'").Scan(&name)
+	err := s.db.QueryRowContext(t.Context(), "SELECT name FROM family_members WHERE name = 'new member'").Scan(&name)
 	require.NoError(t, err)
 	assert.Equal(t, "new member", name)
 
@@ -76,7 +76,7 @@ func TestCreateFamilyMemberJSONPassword(t *testing.T) {
 
 	// Verify created
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM family_members WHERE name='json member'").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM family_members WHERE name='json member'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -99,7 +99,7 @@ func TestHeaderBasedEditPassword(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM family_members WHERE name='header user'").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM family_members WHERE name='header user'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -127,7 +127,7 @@ func TestDeleteFamilyMember(t *testing.T) {
 
 	// Check if the member was deleted
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM family_members WHERE name = 'deleteme'").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM family_members WHERE name = 'deleteme'").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
@@ -142,9 +142,9 @@ func TestCascadeDeleteFamilyMemberDeletesItems(t *testing.T) {
 
 	cookie := loginAndGetCookie(t, s, "pw")
 
-	_, err := s.db.Exec(`INSERT INTO family_members (name) VALUES ("parent")`)
+	_, err := s.db.ExecContext(t.Context(), `INSERT INTO family_members (name) VALUES ("parent")`)
 	require.NoError(t, err)
-	_, err = s.db.Exec(`INSERT INTO items (family_member_id, name) VALUES (1, "child item")`)
+	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (family_member_id, name) VALUES (1, "child item")`)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("DELETE", "/api/family_members/1", nil)
@@ -157,7 +157,7 @@ func TestCascadeDeleteFamilyMemberDeletesItems(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var count int
-	err = s.db.QueryRow("SELECT COUNT(*) FROM items").Scan(&count)
+	err = s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
@@ -216,7 +216,7 @@ func TestCreateFamilyMemberWithForm(t *testing.T) {
 
 	// Verify member was created
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM family_members WHERE name = ?", "Form Member").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM family_members WHERE name = ?", "Form Member").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 }
@@ -246,7 +246,7 @@ func TestCreateFamilyMemberWithSpecialChars(t *testing.T) {
 
 	// Verify member was created with special chars preserved
 	var name string
-	err := s.db.QueryRow("SELECT name FROM family_members WHERE id = 1").Scan(&name)
+	err := s.db.QueryRowContext(t.Context(), "SELECT name FROM family_members WHERE id = 1").Scan(&name)
 	require.NoError(t, err)
 	assert.Equal(t, specialName, name)
 }
@@ -273,7 +273,7 @@ func TestUpdateFamilyMemberWithJSON(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var name string
-	err = s.db.QueryRow("SELECT name FROM family_members WHERE id = 1").Scan(&name)
+	err = s.db.QueryRowContext(t.Context(), "SELECT name FROM family_members WHERE id = 1").Scan(&name)
 	require.NoError(t, err)
 	assert.Equal(t, "NewName", name)
 }
@@ -304,7 +304,7 @@ func TestCreateFamilyMemberDuplicateName(t *testing.T) {
 
 	// Verify only one Alice exists
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM family_members WHERE name = ?", "Alice").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM family_members WHERE name = ?", "Alice").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count)
 }

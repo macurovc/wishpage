@@ -1,7 +1,6 @@
 package main
 
 import (
-	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -9,18 +8,6 @@ import (
 )
 
 func TestNewEmailService_Disabled(t *testing.T) {
-	// Save original env vars
-	origUser := os.Getenv("EMAIL_USER")
-	origPass := os.Getenv("EMAIL_PASS")
-	origTo := os.Getenv("EMAIL_TO")
-
-	// Cleanup
-	defer func() {
-		os.Setenv("EMAIL_USER", origUser)
-		os.Setenv("EMAIL_PASS", origPass)
-		os.Setenv("EMAIL_TO", origTo)
-	}()
-
 	tests := []struct {
 		name        string
 		emailUser   string
@@ -60,9 +47,9 @@ func TestNewEmailService_Disabled(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			os.Setenv("EMAIL_USER", tt.emailUser)
-			os.Setenv("EMAIL_PASS", tt.emailPass)
-			os.Setenv("EMAIL_TO", tt.emailTo)
+			t.Setenv("EMAIL_USER", tt.emailUser)
+			t.Setenv("EMAIL_PASS", tt.emailPass)
+			t.Setenv("EMAIL_TO", tt.emailTo)
 
 			service := newEmailService()
 			assert.False(t, service.enabled, tt.description)
@@ -71,30 +58,12 @@ func TestNewEmailService_Disabled(t *testing.T) {
 }
 
 func TestNewEmailService_Enabled(t *testing.T) {
-	// Save original env vars
-	origUser := os.Getenv("EMAIL_USER")
-	origPass := os.Getenv("EMAIL_PASS")
-	origTo := os.Getenv("EMAIL_TO")
-	origHost := os.Getenv("EMAIL_HOST")
-	origPort := os.Getenv("EMAIL_PORT")
-	origFrom := os.Getenv("EMAIL_FROM")
-
-	// Cleanup
-	defer func() {
-		os.Setenv("EMAIL_USER", origUser)
-		os.Setenv("EMAIL_PASS", origPass)
-		os.Setenv("EMAIL_TO", origTo)
-		os.Setenv("EMAIL_HOST", origHost)
-		os.Setenv("EMAIL_PORT", origPort)
-		os.Setenv("EMAIL_FROM", origFrom)
-	}()
-
-	os.Setenv("EMAIL_USER", "user@example.com")
-	os.Setenv("EMAIL_PASS", "password123")
-	os.Setenv("EMAIL_TO", "recipient@example.com")
-	os.Setenv("EMAIL_HOST", "smtp.example.com")
-	os.Setenv("EMAIL_PORT", "25")
-	os.Setenv("EMAIL_FROM", "sender@example.com")
+	t.Setenv("EMAIL_USER", "user@example.com")
+	t.Setenv("EMAIL_PASS", "password123")
+	t.Setenv("EMAIL_TO", "recipient@example.com")
+	t.Setenv("EMAIL_HOST", "smtp.example.com")
+	t.Setenv("EMAIL_PORT", "25")
+	t.Setenv("EMAIL_FROM", "sender@example.com")
 
 	service := newEmailService()
 
@@ -108,31 +77,11 @@ func TestNewEmailService_Enabled(t *testing.T) {
 }
 
 func TestNewEmailService_Defaults(t *testing.T) {
-	// Save original env vars
-	origUser := os.Getenv("EMAIL_USER")
-	origPass := os.Getenv("EMAIL_PASS")
-	origTo := os.Getenv("EMAIL_TO")
-	origHost := os.Getenv("EMAIL_HOST")
-	origPort := os.Getenv("EMAIL_PORT")
-	origFrom := os.Getenv("EMAIL_FROM")
-
-	// Cleanup
-	defer func() {
-		os.Setenv("EMAIL_USER", origUser)
-		os.Setenv("EMAIL_PASS", origPass)
-		os.Setenv("EMAIL_TO", origTo)
-		os.Setenv("EMAIL_HOST", origHost)
-		os.Setenv("EMAIL_PORT", origPort)
-		os.Setenv("EMAIL_FROM", origFrom)
-	}()
-
-	// Set only required fields
-	os.Setenv("EMAIL_USER", "user@example.com")
-	os.Setenv("EMAIL_PASS", "password123")
-	os.Setenv("EMAIL_TO", "recipient@example.com")
-	os.Unsetenv("EMAIL_HOST")
-	os.Unsetenv("EMAIL_PORT")
-	os.Unsetenv("EMAIL_FROM")
+	// Set only required fields, unset optional ones
+	t.Setenv("EMAIL_USER", "user@example.com")
+	t.Setenv("EMAIL_PASS", "password123")
+	t.Setenv("EMAIL_TO", "recipient@example.com")
+	// EMAIL_HOST, EMAIL_PORT, and EMAIL_FROM are unset by default
 
 	service := newEmailService()
 
@@ -143,24 +92,10 @@ func TestNewEmailService_Defaults(t *testing.T) {
 }
 
 func TestNewEmailService_InvalidPort(t *testing.T) {
-	// Save original env vars
-	origUser := os.Getenv("EMAIL_USER")
-	origPass := os.Getenv("EMAIL_PASS")
-	origTo := os.Getenv("EMAIL_TO")
-	origPort := os.Getenv("EMAIL_PORT")
-
-	// Cleanup
-	defer func() {
-		os.Setenv("EMAIL_USER", origUser)
-		os.Setenv("EMAIL_PASS", origPass)
-		os.Setenv("EMAIL_TO", origTo)
-		os.Setenv("EMAIL_PORT", origPort)
-	}()
-
-	os.Setenv("EMAIL_USER", "user@example.com")
-	os.Setenv("EMAIL_PASS", "password123")
-	os.Setenv("EMAIL_TO", "recipient@example.com")
-	os.Setenv("EMAIL_PORT", "invalid")
+	t.Setenv("EMAIL_USER", "user@example.com")
+	t.Setenv("EMAIL_PASS", "password123")
+	t.Setenv("EMAIL_TO", "recipient@example.com")
+	t.Setenv("EMAIL_PORT", "invalid")
 
 	service := newEmailService()
 
@@ -168,7 +103,7 @@ func TestNewEmailService_InvalidPort(t *testing.T) {
 	assert.Equal(t, 587, service.port, "should use default port when invalid port is provided")
 }
 
-func TestEmailService_SendNotificationEmail_Disabled(t *testing.T) {
+func TestEmailService_SendNotificationEmail_Disabled(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
@@ -180,10 +115,10 @@ func TestEmailService_NotifyItemAdded(t *testing.T) {
 
 	price := 29.99
 	tests := []struct {
-		name             string
 		itemName         string
 		familyMemberName string
 		link             string
+		name             string
 		price            *float64
 	}{
 		{
@@ -217,7 +152,7 @@ func TestEmailService_NotifyItemAdded(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(_ *testing.T) {
 			// Should not panic when disabled
 			service.notifyItemAdded(tt.itemName, tt.familyMemberName, tt.link, tt.price)
 		})
@@ -248,108 +183,30 @@ func TestEmailService_NotifyItemReserved(t *testing.T) {
 	}
 
 	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
+		t.Run(tt.name, func(_ *testing.T) {
 			// Should not panic when disabled
 			service.notifyItemReserved(tt.itemName, tt.familyMemberName, tt.reserved)
 		})
 	}
 }
 
-func TestEmailService_NotifyItemDeleted(t *testing.T) {
+func TestEmailService_NotifyItemDeleted(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
 	service.notifyItemDeleted("Test Item", "John Doe")
 }
 
-func TestEmailService_NotifyFamilyMemberAdded(t *testing.T) {
+func TestEmailService_NotifyFamilyMemberAdded(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
 	service.notifyFamilyMemberAdded("John Doe")
 }
 
-func TestEmailService_NotifyFamilyMemberDeleted(t *testing.T) {
+func TestEmailService_NotifyFamilyMemberDeleted(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
 	service.notifyFamilyMemberDeleted("John Doe")
-}
-
-func TestCleanEmail(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "normal email",
-			input:    "user@example.com",
-			expected: "user@example.com",
-		},
-		{
-			name:     "with whitespace",
-			input:    "  user@example.com  ",
-			expected: "user@example.com",
-		},
-		{
-			name:     "with uppercase",
-			input:    "User@Example.COM",
-			expected: "user@example.com",
-		},
-		{
-			name:     "with both",
-			input:    "  User@Example.COM  ",
-			expected: "user@example.com",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := cleanEmail(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestFormatLink(t *testing.T) {
-	tests := []struct {
-		name     string
-		input    string
-		expected string
-	}{
-		{
-			name:     "empty link",
-			input:    "",
-			expected: "N/A",
-		},
-		{
-			name:     "short link",
-			input:    "https://example.com",
-			expected: "https://example.com",
-		},
-		{
-			name:     "long link",
-			input:    "https://example.com/very/long/path/that/exceeds/fifty/characters/in/total/length",
-			expected: "https://example.com/very/long/path/that/exceeds/fi...",
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result := formatLink(tt.input)
-			assert.Equal(t, tt.expected, result)
-		})
-	}
-}
-
-func TestBuildHTMLEmail(t *testing.T) {
-	content := "<p>Test content</p>"
-	result := buildHTMLEmail(content)
-
-	assert.Contains(t, result, "<!DOCTYPE html>")
-	assert.Contains(t, result, "<html>")
-	assert.Contains(t, result, "</html>")
-	assert.Contains(t, result, content)
-	assert.Contains(t, result, "automated notification")
 }

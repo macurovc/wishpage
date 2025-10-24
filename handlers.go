@@ -2,6 +2,7 @@ package main
 
 import (
 	"database/sql"
+	"errors"
 	"log"
 	"net/http"
 	"strconv"
@@ -21,12 +22,16 @@ func (s *server) handleIndex(w http.ResponseWriter, r *http.Request) {
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch family members").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	// Show landing page with no member selected (selectedFamilyID = 0)
-	templates.View([]models.Item{}, familyMembers, 0).Render(r.Context(), w)
+	if err := templates.View([]models.Item{}, familyMembers, 0).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }
 
 func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
@@ -42,12 +47,14 @@ func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
 	var familyMemberID int
 	err := s.db.QueryRowContext(r.Context(), "SELECT id FROM family_members WHERE name = ?", name).Scan(&familyMemberID)
 	if err != nil {
-		if err == sql.ErrNoRows {
+		if errors.Is(err, sql.ErrNoRows) {
 			http.NotFound(w, r)
 		} else {
 			log.Printf("Error fetching family member %s: %v", name, err)
 			w.WriteHeader(http.StatusInternalServerError)
-			templates.Error("Failed to fetch family member").Render(r.Context(), w)
+			if err := templates.Error("Failed to fetch family member").Render(r.Context(), w); err != nil {
+				log.Printf("Error rendering template: %v", err)
+			}
 		}
 		return
 	}
@@ -56,18 +63,24 @@ func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error fetching items for family member %s: %v", name, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch items").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch items").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch family members").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
-	templates.View(items, familyMembers, familyMemberID).Render(r.Context(), w)
+	if err := templates.View(items, familyMembers, familyMemberID).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }
 
 func (s *server) handleEdit(w http.ResponseWriter, r *http.Request) {
@@ -80,7 +93,9 @@ func (s *server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch family members").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -88,9 +103,13 @@ func (s *server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	items, err := s.getAllItems(r.Context(), "")
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch items").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch items").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
-	templates.Edit(items, familyMembers).Render(r.Context(), w)
+	if err := templates.Edit(items, familyMembers).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }

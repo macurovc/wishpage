@@ -47,13 +47,13 @@ func TestSessionStoreCreateAndValidate(t *testing.T) {
 
 func TestSessionStoreExpiry(t *testing.T) {
 	store := newSessionStore()
-	token := "test-token-expired"
+	testToken := "test-token-expired"        // #nosec G101 -- This is a test token, not a real credential
 	expiry := time.Now().Add(-1 * time.Hour) // Expired 1 hour ago
 
-	store.create(token, expiry)
+	store.create(testToken, expiry)
 
 	// Should be invalid because it's expired
-	assert.False(t, store.isValid(token))
+	assert.False(t, store.isValid(testToken))
 }
 
 func TestSessionStoreDelete(t *testing.T) {
@@ -94,7 +94,7 @@ func TestSessionStoreCleanup(t *testing.T) {
 	assert.False(t, existsExpired, "Expired token should be removed")
 }
 
-func TestSessionStoreConcurrency(t *testing.T) {
+func TestSessionStoreConcurrency(_ *testing.T) {
 	store := newSessionStore()
 	token := "concurrent-token"
 	expiry := time.Now().Add(1 * time.Hour)
@@ -347,7 +347,7 @@ func TestRequireAuthWithValidSession(t *testing.T) {
 
 	// Create a test handler
 	handlerCalled := false
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		handlerCalled = true
 		w.WriteHeader(http.StatusOK)
 	})
@@ -372,7 +372,7 @@ func TestRequireAuthWithValidSession(t *testing.T) {
 func TestRequireAuthWithoutCookie(t *testing.T) {
 	s := newTestServer(t)
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Fatal("Handler should not be called")
 	})
 
@@ -391,7 +391,7 @@ func TestRequireAuthWithoutCookie(t *testing.T) {
 func TestRequireAuthWithInvalidToken(t *testing.T) {
 	s := newTestServer(t)
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Fatal("Handler should not be called")
 	})
 
@@ -418,7 +418,7 @@ func TestRequireAuthWithExpiredToken(t *testing.T) {
 	token := "expired-token"
 	s.sessions.create(token, time.Now().Add(-1*time.Hour))
 
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(_ http.ResponseWriter, _ *http.Request) {
 		t.Fatal("Handler should not be called")
 	})
 
@@ -461,9 +461,11 @@ func TestLoginLogoutFlow(t *testing.T) {
 	sessionCookie := cookies[0]
 
 	// 2. Access protected resource with session
-	testHandler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	testHandler := http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
 		w.WriteHeader(http.StatusOK)
-		w.Write([]byte("Protected content"))
+		if _, err := w.Write([]byte("Protected content")); err != nil {
+			t.Logf("Error writing response: %v", err)
+		}
 	})
 	protectedHandler := s.requireAuth(testHandler)
 

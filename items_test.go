@@ -54,7 +54,7 @@ func TestCreateItem(t *testing.T) {
 
 	// Verify the item was created
 	var name string
-	err := s.db.QueryRow("SELECT name FROM items WHERE id = ?", memberID).Scan(&name)
+	err := s.db.QueryRowContext(t.Context(), "SELECT name FROM items WHERE id = ?", memberID).Scan(&name)
 	require.NoError(t, err)
 	assert.Equal(t, "test item", name)
 	assert.Contains(t, rr.Body.String(), "test item")
@@ -81,7 +81,7 @@ func TestDeleteItem(t *testing.T) {
 
 	// Check if the item was actually deleted
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM items WHERE id = 1").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items WHERE id = 1").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 
@@ -113,7 +113,7 @@ func TestReserveAndUnreserveItem(t *testing.T) {
 
 	// Check if the item was actually reserved in the DB
 	var reserved bool
-	err := s.db.QueryRow("SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
+	err := s.db.QueryRowContext(t.Context(), "SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
 	require.NoError(t, err)
 	assert.True(t, reserved)
 
@@ -127,7 +127,7 @@ func TestReserveAndUnreserveItem(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	// Check if the item was actually un-reserved in the DB
-	err = s.db.QueryRow("SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
+	err = s.db.QueryRowContext(t.Context(), "SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
 	require.NoError(t, err)
 	assert.False(t, reserved)
 }
@@ -137,9 +137,9 @@ func TestUnreserveWithHeaderPreservesFilterAndUpdates(t *testing.T) {
 	t.Setenv("EDIT_PASSWORD", "pw")
 
 	// Two families; one item reserved under family 1
-	_, err := s.db.Exec(`INSERT INTO family_members (name) VALUES ("fam1"), ("fam2")`)
+	_, err := s.db.ExecContext(t.Context(), `INSERT INTO family_members (name) VALUES ("fam1"), ("fam2")`)
 	require.NoError(t, err)
-	_, err = s.db.Exec(`INSERT INTO items (name, family_member_id, reserved) VALUES ("reserved item", 1, 1)`)
+	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (name, family_member_id, reserved) VALUES ("reserved item", 1, 1)`)
 	require.NoError(t, err)
 
 	cookie := loginAndGetCookie(t, s, "pw")
@@ -155,7 +155,7 @@ func TestUnreserveWithHeaderPreservesFilterAndUpdates(t *testing.T) {
 
 	// DB should reflect unreserved
 	var reserved bool
-	err = s.db.QueryRow("SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
+	err = s.db.QueryRowContext(t.Context(), "SELECT reserved FROM items WHERE id = 1").Scan(&reserved)
 	require.NoError(t, err)
 	assert.False(t, reserved)
 
@@ -171,10 +171,10 @@ func TestNullHandlingOnItemList(t *testing.T) {
 	s := newTestServer(t)
 	t.Setenv("EDIT_PASSWORD", "pw")
 
-	_, err := s.db.Exec(`INSERT INTO family_members (name) VALUES ("alpha")`)
+	_, err := s.db.ExecContext(t.Context(), `INSERT INTO family_members (name) VALUES ("alpha")`)
 	require.NoError(t, err)
 	// Insert an item with NULL link and price
-	_, err = s.db.Exec(`INSERT INTO items (family_member_id, name, link, price, reserved) VALUES (1, "no extras", NULL, NULL, 0)`)
+	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (family_member_id, name, link, price, reserved) VALUES (1, "no extras", NULL, NULL, 0)`)
 	require.NoError(t, err)
 
 	req := httptest.NewRequest("GET", "/api/items", nil)
@@ -249,7 +249,7 @@ func TestCreateItemWithJSON(t *testing.T) {
 
 	// Verify item was created
 	var count int
-	err = s.db.QueryRow("SELECT COUNT(*) FROM items WHERE name = ?", "JSON Item").Scan(&count)
+	err = s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items WHERE name = ?", "JSON Item").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 1, count, "Expected 1 item created")
 }
@@ -260,11 +260,11 @@ func TestUpdateItemEmptyValuesToNull(t *testing.T) {
 
 	cookie := loginAndGetCookie(t, s, "testpass")
 
-	_, err := s.db.Exec("INSERT INTO family_members (name) VALUES (?)", "Alice")
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO family_members (name) VALUES (?)", "Alice")
 	require.NoError(t, err)
 
 	// Create item with link and price
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name, link, price) VALUES (?, ?, ?, ?)",
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, link, price) VALUES (?, ?, ?, ?)",
 		1, "Test Item", "https://example.com", 50.0)
 	require.NoError(t, err)
 
@@ -286,7 +286,7 @@ func TestUpdateItemEmptyValuesToNull(t *testing.T) {
 	// Verify link and price are NULL
 	var link sql.NullString
 	var price sql.NullFloat64
-	err = s.db.QueryRow("SELECT link, price FROM items WHERE id = 1").Scan(&link, &price)
+	err = s.db.QueryRowContext(t.Context(), "SELECT link, price FROM items WHERE id = 1").Scan(&link, &price)
 	require.NoError(t, err)
 	assert.False(t, link.Valid, "Expected link to be NULL")
 	assert.False(t, price.Valid, "Expected price to be NULL")
@@ -321,7 +321,7 @@ func TestCreateItemWithLongName(t *testing.T) {
 
 	// Verify item was NOT created
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM items WHERE family_member_id = 1").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items WHERE family_member_id = 1").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
@@ -351,7 +351,7 @@ func TestCreateItemWithNegativePrice(t *testing.T) {
 
 	// Verify item was NOT created
 	var count int
-	err := s.db.QueryRow("SELECT COUNT(*) FROM items WHERE name = ?", "Negative Price Item").Scan(&count)
+	err := s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items WHERE name = ?", "Negative Price Item").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 0, count)
 }
@@ -411,7 +411,7 @@ func TestCreateItemWithoutFamilyMemberDefaultsToFirst(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 
 	var familyMemberID int
-	err := s.db.QueryRow("SELECT family_member_id FROM items WHERE name = ?", "Default Member Item").Scan(&familyMemberID)
+	err := s.db.QueryRowContext(t.Context(), "SELECT family_member_id FROM items WHERE name = ?", "Default Member Item").Scan(&familyMemberID)
 	require.NoError(t, err)
 	// Should default to first member (Alice, ID=1)
 	assert.Equal(t, 1, familyMemberID)
@@ -428,11 +428,11 @@ func TestUpdateItemPreservesFilterWithHeader(t *testing.T) {
 	createFamilyMember(t, s, "Bob")
 
 	// Add items for both
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 1", 10.0)
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 1", 10.0)
 	require.NoError(t, err)
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 2", 20.0)
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 2", 20.0)
 	require.NoError(t, err)
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 2, "Bob Item", 30.0)
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 2, "Bob Item", 30.0)
 	require.NoError(t, err)
 
 	// Update Alice's first item with family filter header
@@ -453,7 +453,7 @@ func TestUpdateItemPreservesFilterWithHeader(t *testing.T) {
 	// Verify the item was updated
 	var name string
 	var price float64
-	err = s.db.QueryRow("SELECT name, price FROM items WHERE id = 1").Scan(&name, &price)
+	err = s.db.QueryRowContext(t.Context(), "SELECT name, price FROM items WHERE id = 1").Scan(&name, &price)
 	require.NoError(t, err)
 	assert.Equal(t, "Alice Item 1 Updated", name)
 	assert.Equal(t, 15.0, price)
@@ -476,11 +476,11 @@ func TestUpdateItemPreservesFilterWithoutHeader(t *testing.T) {
 	createFamilyMember(t, s, "Bob")
 
 	// Add items for both
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 1", 10.0)
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 1", 10.0)
 	require.NoError(t, err)
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 2", 20.0)
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Alice Item 2", 20.0)
 	require.NoError(t, err)
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 2, "Bob Item", 30.0)
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 2, "Bob Item", 30.0)
 	require.NoError(t, err)
 
 	// Update Alice's first item WITHOUT family filter header
@@ -515,7 +515,7 @@ func TestUpdateItemChangeFamilyMember(t *testing.T) {
 	createFamilyMember(t, s, "Bob")
 
 	// Add item for Alice
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Movable Item", 10.0)
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "Movable Item", 10.0)
 	require.NoError(t, err)
 
 	// Move item from Alice (1) to Bob (2)
@@ -535,7 +535,7 @@ func TestUpdateItemChangeFamilyMember(t *testing.T) {
 
 	// Verify item was moved to Bob
 	var familyMemberID int
-	err = s.db.QueryRow("SELECT family_member_id FROM items WHERE id = 1").Scan(&familyMemberID)
+	err = s.db.QueryRowContext(t.Context(), "SELECT family_member_id FROM items WHERE id = 1").Scan(&familyMemberID)
 	require.NoError(t, err)
 	assert.Equal(t, 2, familyMemberID)
 
@@ -555,7 +555,7 @@ func TestCreateItemUsesHeaderForFamilyMember(t *testing.T) {
 	createFamilyMember(t, s, "Bob")
 
 	// Add existing item for Alice
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Alice Existing Item")
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Alice Existing Item")
 	require.NoError(t, err)
 
 	// Create new item with X-Family-Member-ID header pointing to Bob
@@ -576,7 +576,7 @@ func TestCreateItemUsesHeaderForFamilyMember(t *testing.T) {
 	// Verify item was created for Bob (ID=2)
 	var familyMemberID int
 	var name string
-	err = s.db.QueryRow("SELECT family_member_id, name FROM items WHERE name = ?", "Bob's Item").Scan(&familyMemberID, &name)
+	err = s.db.QueryRowContext(t.Context(), "SELECT family_member_id, name FROM items WHERE name = ?", "Bob's Item").Scan(&familyMemberID, &name)
 	require.NoError(t, err)
 	assert.Equal(t, 2, familyMemberID)
 }
@@ -609,7 +609,7 @@ func TestCreateItemWithDuplicateName(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 
 	// Create first item
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Existing Item")
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Existing Item")
 	require.NoError(t, err)
 
 	// Try to create another item with the same name for the same family member
@@ -636,7 +636,7 @@ func TestCreateItemWithSameNameDifferentFamilyMember(t *testing.T) {
 	createFamilyMember(t, s, "Bob")
 
 	// Create item for Alice
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Shared Item Name")
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Shared Item Name")
 	require.NoError(t, err)
 
 	// Create item with same name for Bob - should succeed
@@ -655,7 +655,7 @@ func TestCreateItemWithSameNameDifferentFamilyMember(t *testing.T) {
 
 	// Verify both items exist
 	var count int
-	err = s.db.QueryRow("SELECT COUNT(*) FROM items WHERE name = ?", "Shared Item Name").Scan(&count)
+	err = s.db.QueryRowContext(t.Context(), "SELECT COUNT(*) FROM items WHERE name = ?", "Shared Item Name").Scan(&count)
 	require.NoError(t, err)
 	assert.Equal(t, 2, count)
 }
@@ -667,9 +667,9 @@ func TestUpdateItemWithDuplicateName(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 
 	// Create two items
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Item 1")
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Item 1")
 	require.NoError(t, err)
-	_, err = s.db.Exec("INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Item 2")
+	_, err = s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name) VALUES (?, ?)", 1, "Item 2")
 	require.NoError(t, err)
 
 	// Try to rename Item 2 to Item 1
@@ -694,7 +694,7 @@ func TestUpdateItemKeepingSameName(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 
 	// Create item
-	_, err := s.db.Exec("INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "My Item", 10.0)
+	_, err := s.db.ExecContext(t.Context(), "INSERT INTO items (family_member_id, name, price) VALUES (?, ?, ?)", 1, "My Item", 10.0)
 	require.NoError(t, err)
 
 	// Update the price but keep the same name - should succeed
@@ -713,7 +713,7 @@ func TestUpdateItemKeepingSameName(t *testing.T) {
 
 	// Verify the price was updated
 	var price float64
-	err = s.db.QueryRow("SELECT price FROM items WHERE id = 1").Scan(&price)
+	err = s.db.QueryRowContext(t.Context(), "SELECT price FROM items WHERE id = 1").Scan(&price)
 	require.NoError(t, err)
 	assert.Equal(t, 20.0, price)
 }

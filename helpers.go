@@ -10,7 +10,7 @@ import (
 )
 
 // parseIDFromPath extracts an integer ID from a URL path after the given prefix.
-// Example: parseIDFromPath("/api/items/", "/api/items/123") returns 123, nil
+// Example: parseIDFromPath("/api/items/", "/api/items/123") returns 123, nil.
 func parseIDFromPath(prefix, path string) (int, error) {
 	seg, ok := strings.CutPrefix(path, prefix)
 	if !ok {
@@ -63,7 +63,7 @@ func parseRequestBody(r *http.Request) (map[string]string, error) {
 	return result, nil
 }
 
-// requestBodyData is a helper struct for extracting common fields from request bodies
+// requestBodyData is a helper struct for extracting common fields from request bodies.
 type requestBodyData struct {
 	Name           string
 	Link           string
@@ -79,41 +79,67 @@ func parseItemRequestBody(r *http.Request) (*requestBodyData, error) {
 		return nil, err
 	}
 
-	data := &requestBodyData{}
 	ct := r.Header.Get("Content-Type")
 
 	if strings.Contains(ct, "application/json") {
-		var payload map[string]any
-		if err := json.Unmarshal(body, &payload); err != nil {
-			return nil, err
-		}
-		if v, ok := payload["name"].(string); ok {
-			data.Name = v
-		}
-		if v, ok := payload["link"].(string); ok {
-			data.Link = v
-		}
-		if v, ok := payload["family_member_id"].(string); ok {
-			data.FamilyMemberID = v
-		} else if v2, ok2 := payload["family_member_id"].(float64); ok2 {
-			data.FamilyMemberID = strconv.Itoa(int(v2))
-		}
-		if v, ok := payload["price"].(string); ok {
-			data.Price = v
-		} else if v2, ok2 := payload["price"].(float64); ok2 {
-			data.Price = strconv.FormatFloat(v2, 'f', -1, 64)
-		}
-	} else {
-		// Default to form parsing (handles both form-urlencoded and default)
-		values, err := url.ParseQuery(string(body))
-		if err != nil {
-			return nil, err
-		}
-		data.Name = values.Get("name")
-		data.Link = values.Get("link")
-		data.Price = values.Get("price")
-		data.FamilyMemberID = values.Get("family_member_id")
+		return parseJSONRequestBody(body)
+	}
+
+	return parseFormRequestBody(body)
+}
+
+// parseJSONRequestBody extracts request body data from JSON payload.
+func parseJSONRequestBody(body []byte) (*requestBodyData, error) {
+	var payload map[string]any
+	if err := json.Unmarshal(body, &payload); err != nil {
+		return nil, err
+	}
+
+	data := &requestBodyData{
+		Name:           extractString(payload, "name"),
+		Link:           extractString(payload, "link"),
+		FamilyMemberID: extractStringOrNumber(payload, "family_member_id"),
+		Price:          extractStringOrNumber(payload, "price"),
 	}
 
 	return data, nil
+}
+
+// parseFormRequestBody extracts request body data from form-urlencoded payload.
+func parseFormRequestBody(body []byte) (*requestBodyData, error) {
+	values, err := url.ParseQuery(string(body))
+	if err != nil {
+		return nil, err
+	}
+
+	data := &requestBodyData{
+		Name:           values.Get("name"),
+		Link:           values.Get("link"),
+		Price:          values.Get("price"),
+		FamilyMemberID: values.Get("family_member_id"),
+	}
+
+	return data, nil
+}
+
+// extractString extracts a string value from a map payload.
+func extractString(payload map[string]any, key string) string {
+	if v, ok := payload[key].(string); ok {
+		return v
+	}
+	return ""
+}
+
+// extractStringOrNumber extracts a value that can be either a string or number from a map payload.
+func extractStringOrNumber(payload map[string]any, key string) string {
+	if v, ok := payload[key].(string); ok {
+		return v
+	}
+	if v, ok := payload[key].(float64); ok {
+		if key == "price" {
+			return strconv.FormatFloat(v, 'f', -1, 64)
+		}
+		return strconv.Itoa(int(v))
+	}
+	return ""
 }

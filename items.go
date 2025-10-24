@@ -21,41 +21,52 @@ func (s *server) handleItems(w http.ResponseWriter, r *http.Request) {
 		s.requireAuth(s.createItem)(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	}
 }
 
 func (s *server) handleItemsID(w http.ResponseWriter, r *http.Request) {
-	if strings.HasSuffix(r.URL.Path, "/reserve-confirm") {
+	switch {
+	case strings.HasSuffix(r.URL.Path, "/reserve-confirm"):
 		if r.Method == http.MethodGet {
 			s.reserveConfirm(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			templates.Error("Method not allowed").Render(r.Context(), w)
+			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+				log.Printf("Error rendering template: %v", err)
+			}
 		}
 		return
-	} else if strings.HasSuffix(r.URL.Path, "/reserve-cancel") {
+	case strings.HasSuffix(r.URL.Path, "/reserve-cancel"):
 		if r.Method == http.MethodGet {
 			s.reserveCancel(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			templates.Error("Method not allowed").Render(r.Context(), w)
+			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+				log.Printf("Error rendering template: %v", err)
+			}
 		}
 		return
-	} else if strings.HasSuffix(r.URL.Path, "/reserve") {
+	case strings.HasSuffix(r.URL.Path, "/reserve"):
 		if r.Method == http.MethodPut {
 			s.reserveItem(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			templates.Error("Method not allowed").Render(r.Context(), w)
+			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+				log.Printf("Error rendering template: %v", err)
+			}
 		}
 		return
-	} else if strings.HasSuffix(r.URL.Path, "/unreserve") {
+	case strings.HasSuffix(r.URL.Path, "/unreserve"):
 		if r.Method == http.MethodPut {
 			s.requireAuth(s.unreserveItem)(w, r)
 		} else {
 			w.WriteHeader(http.StatusMethodNotAllowed)
-			templates.Error("Method not allowed").Render(r.Context(), w)
+			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+				log.Printf("Error rendering template: %v", err)
+			}
 		}
 		return
 	}
@@ -67,7 +78,9 @@ func (s *server) handleItemsID(w http.ResponseWriter, r *http.Request) {
 		s.requireAuth(s.deleteItem)(w, r)
 	default:
 		w.WriteHeader(http.StatusMethodNotAllowed)
-		templates.Error("Method not allowed").Render(r.Context(), w)
+		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	}
 }
 
@@ -88,7 +101,11 @@ func (s *server) getAllItems(ctx context.Context, familyMemberID string) ([]mode
 	if err != nil {
 		return nil, fmt.Errorf("failed to query items for family member %s: %w", familyMemberID, err)
 	}
-	defer rows.Close()
+	defer func() {
+		if err := rows.Close(); err != nil {
+			log.Printf("Error closing rows: %v", err)
+		}
+	}()
 
 	items := []models.Item{}
 	for rows.Next() {
@@ -133,7 +150,9 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 	if err != nil {
 		log.Printf("Error fetching items for family member %s: %v", familyMemberID, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch items").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch items").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -141,7 +160,9 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 	if err != nil {
 		log.Printf("Error fetching family members: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to fetch family members").Render(r.Context(), w)
+		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -151,76 +172,103 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 
 	if isAuthenticated {
 		// In edit mode, render items for the member using the new template
-		templates.ItemsForMember(items).Render(r.Context(), w)
+		if err := templates.ItemsForMember(items).Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	} else {
-		templates.ItemListView(items, members).Render(r.Context(), w)
+		if err := templates.ItemListView(items, members).Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 	}
 }
 
 func (s *server) createItem(w http.ResponseWriter, r *http.Request) {
 	data, err := parseItemRequestBody(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid request body").Render(r.Context(), w)
+		s.renderError(w, r, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	name, err := validateAndNormalizeName(data.Name)
+	validated, err := s.validateCreateItemData(r, data)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error(err.Error()).Render(r.Context(), w)
-		return
-	}
-	if len(name) > 200 {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Item name too long (max 200 characters)").Render(r.Context(), w)
+		s.renderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	familyMemberID, familyMemberIDStr, err := s.resolveFamilyMemberID(r, data.FamilyMemberID)
+	result, err := s.insertItem(r.Context(), validated)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error(err.Error()).Render(r.Context(), w)
-		return
-	}
-
-	price, err := parsePrice(data.Price)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error(err.Error()).Render(r.Context(), w)
-		return
-	}
-
-	link := strings.TrimSpace(data.Link)
-
-	// Check if an item with this name already exists for this family member
-	exists, err := s.itemNameExists(r.Context(), name, familyMemberID, 0)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to check item name").Render(r.Context(), w)
-		return
-	}
-	if exists {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("An item with this name already exists for this family member").Render(r.Context(), w)
-		return
-	}
-
-	// Convert to SQL NULL types: empty string becomes NULL for link, empty input becomes NULL for price
-	linkParam := toNullString(link)
-	priceParam := sql.NullFloat64{Float64: price, Valid: data.Price != ""}
-
-	result, err := s.db.ExecContext(r.Context(),
-		"INSERT INTO items (family_member_id, name, link, price) VALUES (?, ?, ?, ?)",
-		familyMemberID, name, linkParam, priceParam)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to add item").Render(r.Context(), w)
+		s.renderError(w, r, http.StatusInternalServerError, "Failed to add item")
 		return
 	}
 
 	s.notifyItemCreated(r.Context(), result)
-	s.renderItemList(w, r, familyMemberIDStr)
+	s.renderItemList(w, r, validated.FamilyMemberIDStr)
+}
+
+// renderError is a helper to render an error template with a status code.
+func (s *server) renderError(w http.ResponseWriter, r *http.Request, status int, message string) {
+	w.WriteHeader(status)
+	if err := templates.Error(message).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
+}
+
+// validatedItemData holds validated data for creating an item.
+type validatedItemData struct {
+	Name              string
+	FamilyMemberID    int
+	FamilyMemberIDStr string
+	Price             float64
+	PriceValid        bool
+	Link              string
+}
+
+// validateCreateItemData validates and normalizes all item creation data.
+func (s *server) validateCreateItemData(r *http.Request, data *requestBodyData) (*validatedItemData, error) {
+	name, err := validateAndNormalizeName(data.Name)
+	if err != nil {
+		return nil, err
+	}
+	if len(name) > 200 {
+		return nil, fmt.Errorf("item name too long (max 200 characters)")
+	}
+
+	familyMemberID, familyMemberIDStr, err := s.resolveFamilyMemberID(r, data.FamilyMemberID)
+	if err != nil {
+		return nil, err
+	}
+
+	price, err := parsePrice(data.Price)
+	if err != nil {
+		return nil, err
+	}
+
+	exists, err := s.itemNameExists(r.Context(), name, familyMemberID, 0)
+	if err != nil {
+		return nil, fmt.Errorf("failed to check item name: %w", err)
+	}
+	if exists {
+		return nil, fmt.Errorf("an item with this name already exists for this family member")
+	}
+
+	return &validatedItemData{
+		Name:              name,
+		FamilyMemberID:    familyMemberID,
+		FamilyMemberIDStr: familyMemberIDStr,
+		Price:             price,
+		PriceValid:        data.Price != "",
+		Link:              strings.TrimSpace(data.Link),
+	}, nil
+}
+
+// insertItem inserts a validated item into the database.
+func (s *server) insertItem(ctx context.Context, data *validatedItemData) (sql.Result, error) {
+	linkParam := toNullString(data.Link)
+	priceParam := sql.NullFloat64{Float64: data.Price, Valid: data.PriceValid}
+
+	return s.db.ExecContext(ctx,
+		"INSERT INTO items (family_member_id, name, link, price) VALUES (?, ?, ?, ?)",
+		data.FamilyMemberID, data.Name, linkParam, priceParam)
 }
 
 // validateAndNormalizeName ensures the item name is valid, returning an error if empty.
@@ -246,26 +294,34 @@ func (s *server) itemNameExists(ctx context.Context, name string, familyMemberID
 
 // resolveFamilyMemberID determines the family member ID from body, header, or defaults to first available.
 func (s *server) resolveFamilyMemberID(r *http.Request, bodyID string) (int, string, error) {
-	familyMemberIDStr := bodyID
-	if familyMemberIDStr == "" {
-		familyMemberIDStr = r.Header.Get("X-Family-Member-ID")
-		if familyMemberIDStr == "" {
-			members, err := s.getAllFamilyMembers(r.Context())
-			if err == nil && len(members) > 0 {
-				familyMemberIDStr = strconv.Itoa(members[0].ID)
-			}
-			if familyMemberIDStr == "" {
-				return 0, "", fmt.Errorf("missing family member selection")
-			}
-		}
+	// Try body ID first
+	if bodyID != "" {
+		return s.parseAndValidateFamilyMemberID(bodyID)
 	}
 
-	familyMemberID, err := strconv.Atoi(familyMemberIDStr)
+	// Try header
+	headerID := r.Header.Get("X-Family-Member-ID")
+	if headerID != "" {
+		return s.parseAndValidateFamilyMemberID(headerID)
+	}
+
+	// Default to first family member
+	members, err := s.getAllFamilyMembers(r.Context())
+	if err != nil || len(members) == 0 {
+		return 0, "", fmt.Errorf("missing family member selection")
+	}
+
+	firstMemberIDStr := strconv.Itoa(members[0].ID)
+	return members[0].ID, firstMemberIDStr, nil
+}
+
+// parseAndValidateFamilyMemberID converts and validates a family member ID string.
+func (s *server) parseAndValidateFamilyMemberID(idStr string) (int, string, error) {
+	id, err := strconv.Atoi(idStr)
 	if err != nil {
 		return 0, "", fmt.Errorf("invalid family member ID")
 	}
-
-	return familyMemberID, familyMemberIDStr, nil
+	return id, idStr, nil
 }
 
 // parsePrice validates and parses the price string, returning 0.0 if empty.
@@ -326,79 +382,81 @@ func (s *server) getItemByID(ctx context.Context, itemID int) (models.Item, erro
 func (s *server) updateItem(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
+		s.renderError(w, r, http.StatusBadRequest, "Invalid item ID")
 		return
 	}
 
 	data, err := parseItemRequestBody(r)
 	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid request body").Render(r.Context(), w)
+		s.renderError(w, r, http.StatusBadRequest, "Invalid request body")
 		return
 	}
 
-	// If name is being updated, validate it and check uniqueness
-	if strings.TrimSpace(data.Name) != "" {
-		name, err := validateAndNormalizeName(data.Name)
-		if err != nil {
-			w.WriteHeader(http.StatusBadRequest)
-			templates.Error(err.Error()).Render(r.Context(), w)
-			return
-		}
-
-		// Get current item to determine family member ID
-		item, err := s.getItemByID(r.Context(), id)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			templates.Error("Failed to fetch item").Render(r.Context(), w)
-			return
-		}
-
-		// Use the new family member ID if it's being changed, otherwise use the current one
-		familyMemberID := item.FamilyMemberID
-		if data.FamilyMemberID != "" {
-			familyMemberID, err = strconv.Atoi(data.FamilyMemberID)
-			if err != nil {
-				w.WriteHeader(http.StatusBadRequest)
-				templates.Error("invalid family member ID").Render(r.Context(), w)
-				return
-			}
-		}
-
-		// Check uniqueness
-		exists, err := s.itemNameExists(r.Context(), name, familyMemberID, id)
-		if err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			templates.Error("Failed to check item name").Render(r.Context(), w)
-			return
-		}
-		if exists {
-			w.WriteHeader(http.StatusBadRequest)
-			templates.Error("An item with this name already exists for this family member").Render(r.Context(), w)
-			return
-		}
-	}
-
-	setParts, args, err := buildUpdateQuery(data)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error(err.Error()).Render(r.Context(), w)
+	if err := s.validateItemNameUpdate(r.Context(), id, data); err != nil {
+		s.renderError(w, r, http.StatusBadRequest, err.Error())
 		return
 	}
 
-	if len(setParts) > 0 {
-		query := "UPDATE items SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
-		args = append(args, id)
-		if _, err := s.db.ExecContext(r.Context(), query, args...); err != nil {
-			w.WriteHeader(http.StatusInternalServerError)
-			templates.Error("Failed to update item").Render(r.Context(), w)
-			return
-		}
+	if err := s.executeItemUpdate(r.Context(), id, data); err != nil {
+		s.renderError(w, r, http.StatusInternalServerError, "Failed to update item")
+		return
 	}
 
 	currentFam := getFamilyMemberIDForItem(s, r, id)
 	s.renderItemList(w, r, currentFam)
+}
+
+// validateItemNameUpdate validates the item name update and checks for uniqueness if name is being changed.
+func (s *server) validateItemNameUpdate(ctx context.Context, itemID int, data *requestBodyData) error {
+	// If name is not being updated, skip validation
+	if strings.TrimSpace(data.Name) == "" {
+		return nil
+	}
+
+	normalizedName, err := validateAndNormalizeName(data.Name)
+	if err != nil {
+		return err
+	}
+
+	item, err := s.getItemByID(ctx, itemID)
+	if err != nil {
+		return fmt.Errorf("failed to fetch item: %w", err)
+	}
+
+	familyMemberID := item.FamilyMemberID
+	if data.FamilyMemberID != "" {
+		familyMemberID, err = strconv.Atoi(data.FamilyMemberID)
+		if err != nil {
+			return fmt.Errorf("invalid family member ID")
+		}
+	}
+
+	exists, err := s.itemNameExists(ctx, normalizedName, familyMemberID, itemID)
+	if err != nil {
+		return fmt.Errorf("failed to check item name: %w", err)
+	}
+	if exists {
+		return fmt.Errorf("an item with this name already exists for this family member")
+	}
+
+	return nil
+}
+
+// executeItemUpdate builds and executes the UPDATE query for an item.
+func (s *server) executeItemUpdate(ctx context.Context, itemID int, data *requestBodyData) error {
+	setParts, args, err := buildUpdateQuery(data)
+	if err != nil {
+		return err
+	}
+
+	if len(setParts) == 0 {
+		return nil // No updates to perform
+	}
+
+	query := buildUpdateSQL(setParts)
+	args = append(args, itemID)
+	_, err = s.db.ExecContext(ctx, query, args...)
+	return err
 }
 
 // buildUpdateQuery constructs the SET clause and arguments for an UPDATE query based on provided data.
@@ -441,61 +499,64 @@ func buildUpdateQuery(data *requestBodyData) ([]string, []any, error) {
 	return setParts, args, nil
 }
 
-func (s *server) reserveItem(w http.ResponseWriter, r *http.Request) {
+// buildUpdateSQL constructs a parameterized UPDATE SQL statement.
+// This is safe because setParts are constructed internally with trusted strings.
+func buildUpdateSQL(setParts []string) string {
+	return "UPDATE items SET " + strings.Join(setParts, ", ") + " WHERE id = ?"
+}
+
+// updateItemReservation is a helper function that handles reserving or unreserving an item.
+func (s *server) updateItemReservation(w http.ResponseWriter, r *http.Request, reserved bool) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	itemName, familyMemberName := s.getItemDetailsForNotification(r.Context(), id)
 
-	_, err = s.db.ExecContext(r.Context(), "UPDATE items SET reserved = 1 WHERE id = ?", id)
+	reservedVal := 0
+	errMsg := "Failed to un-reserve item"
+	if reserved {
+		reservedVal = 1
+		errMsg = "Failed to reserve item"
+	}
+
+	_, err = s.db.ExecContext(r.Context(), "UPDATE items SET reserved = ? WHERE id = ?", reservedVal, id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to reserve item").Render(r.Context(), w)
+		if err := templates.Error(errMsg).Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
 	if itemName != "" {
-		s.emailService.notifyItemReserved(itemName, familyMemberName, true)
+		s.emailService.notifyItemReserved(itemName, familyMemberName, reserved)
 	}
 
 	currentFam := getFamilyMemberIDForItem(s, r, id)
 	s.renderItemList(w, r, currentFam)
 }
 
+func (s *server) reserveItem(w http.ResponseWriter, r *http.Request) {
+	s.updateItemReservation(w, r, true)
+}
+
 func (s *server) unreserveItem(w http.ResponseWriter, r *http.Request) {
-	id, err := parseIDFromPath("/api/items/", r.URL.Path)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
-		return
-	}
-
-	itemName, familyMemberName := s.getItemDetailsForNotification(r.Context(), id)
-
-	_, err = s.db.ExecContext(r.Context(), "UPDATE items SET reserved = 0 WHERE id = ?", id)
-	if err != nil {
-		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to un-reserve item").Render(r.Context(), w)
-		return
-	}
-
-	if itemName != "" {
-		s.emailService.notifyItemReserved(itemName, familyMemberName, false)
-	}
-
-	currentFam := getFamilyMemberIDForItem(s, r, id)
-	s.renderItemList(w, r, currentFam)
+	s.updateItemReservation(w, r, false)
 }
 
 func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -505,7 +566,9 @@ func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	_, err = s.db.ExecContext(r.Context(), "DELETE FROM items WHERE id = ?", id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		templates.Error("Failed to delete item").Render(r.Context(), w)
+		if err := templates.Error("Failed to delete item").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
@@ -535,22 +598,30 @@ func (s *server) reserveConfirm(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
-	templates.ReserveConfirmation(id).Render(r.Context(), w)
+	if err := templates.ReserveConfirmation(id).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }
 
 func (s *server) reserveCancel(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		templates.Error("Invalid item ID").Render(r.Context(), w)
+		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
+			log.Printf("Error rendering template: %v", err)
+		}
 		return
 	}
 
-	templates.ReserveButton(id).Render(r.Context(), w)
+	if err := templates.ReserveButton(id).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
+	}
 }
 
 // getFamilyMemberIDForItem is a helper that retrieves the family member ID from the request header
