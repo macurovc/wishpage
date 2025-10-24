@@ -199,12 +199,6 @@ templ itemCardEdit(item models.Item) {
                     }
                 </h5>
                 
-                if item.Price != nil {
-                    <div class="item-price mb-2">
-                        { fmt.Sprintf("€%.2f", *item.Price) }
-                    </div>
-                }
-                
                 if item.Link != nil && *item.Link != "" {
                     <a href={ templ.URL(*item.Link) } target="_blank" rel="noopener noreferrer" class="btn btn-sm btn-link p-0 mb-3">
                         🔗
