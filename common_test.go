@@ -20,8 +20,8 @@ func newTestServer(t *testing.T) *server {
 	db, err := sql.Open("sqlite3", ":memory:")
 	require.NoError(t, err, "Failed to open test database")
 	t.Cleanup(func() {
-		if err := db.Close(); err != nil {
-			t.Logf("Error closing test database: %v", err)
+		if closeErr := db.Close(); closeErr != nil {
+			t.Logf("Error closing test database: %v", closeErr)
 		}
 	})
 

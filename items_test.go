@@ -22,7 +22,7 @@ import (
 func TestGetItems(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/items", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/items", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleItems(rr, req)
@@ -70,7 +70,7 @@ func TestDeleteItem(t *testing.T) {
 	createFamilyMember(t, s, "testmember")
 	createItem(t, s, 1, "test item", nil)
 
-	req := httptest.NewRequest("DELETE", "/api/items/1", nil)
+	req := httptest.NewRequest("DELETE", "/api/items/1", http.NoBody)
 	req.AddCookie(cookie)
 
 	rr := httptest.NewRecorder()
@@ -104,7 +104,7 @@ func TestReserveAndUnreserveItem(t *testing.T) {
 	createItem(t, s, 1, "test item", nil)
 
 	// 2. Reserve the item (no password)
-	req := httptest.NewRequest("PUT", "/api/items/1/reserve", nil)
+	req := httptest.NewRequest("PUT", "/api/items/1/reserve", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(s.handleItemsID)
 	handler.ServeHTTP(rr, req)
@@ -118,7 +118,7 @@ func TestReserveAndUnreserveItem(t *testing.T) {
 	assert.True(t, reserved)
 
 	// 3. Un-reserve the item (with password)
-	req = httptest.NewRequest("PUT", "/api/items/1/unreserve", nil)
+	req = httptest.NewRequest("PUT", "/api/items/1/unreserve", http.NoBody)
 	req.AddCookie(cookie)
 
 	rr = httptest.NewRecorder()
@@ -144,7 +144,7 @@ func TestUnreserveWithHeaderPreservesFilterAndUpdates(t *testing.T) {
 
 	cookie := loginAndGetCookie(t, s, "pw")
 
-	req := httptest.NewRequest("PUT", "/api/items/1/unreserve", nil)
+	req := httptest.NewRequest("PUT", "/api/items/1/unreserve", http.NoBody)
 	req.AddCookie(cookie)
 	req.Header.Set("X-Family-Member-ID", "1")
 
@@ -177,7 +177,7 @@ func TestNullHandlingOnItemList(t *testing.T) {
 	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (family_member_id, name, link, price, reserved) VALUES (1, "no extras", NULL, NULL, 0)`)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest("GET", "/api/items", nil)
+	req := httptest.NewRequest("GET", "/api/items", http.NoBody)
 	rr := httptest.NewRecorder()
 	handler := http.HandlerFunc(s.handleItems)
 	handler.ServeHTTP(rr, req)
@@ -202,7 +202,7 @@ func TestDeleteItemPreservesFilter(t *testing.T) {
 	createItem(t, s, bobID, "Bob Item", &price30)
 
 	// Delete Alice's first item with family filter header
-	req := httptest.NewRequest(http.MethodDelete, "/api/items/1", nil)
+	req := httptest.NewRequest(http.MethodDelete, "/api/items/1", http.NoBody)
 	req.AddCookie(cookie)
 	req.Header.Set("X-Family-Member-ID", "1")
 	rr := httptest.NewRecorder()
@@ -229,7 +229,7 @@ func TestCreateItemWithJSON(t *testing.T) {
 
 	createFamilyMember(t, s, "Alice")
 
-	payload := map[string]interface{}{
+	payload := map[string]any{
 		"name":             "JSON Item",
 		"family_member_id": 1,
 		"price":            99.99,
@@ -362,7 +362,7 @@ func TestDeleteItemWithInvalidID(t *testing.T) {
 
 	cookie := loginAndGetCookie(t, s, "testpass")
 
-	req := httptest.NewRequest("DELETE", "/api/items/not-a-number", nil)
+	req := httptest.NewRequest("DELETE", "/api/items/not-a-number", http.NoBody)
 	req.AddCookie(cookie)
 
 	rr := httptest.NewRecorder()

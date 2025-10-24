@@ -52,8 +52,8 @@ func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
 		} else {
 			log.Printf("Error fetching family member %s: %v", name, err)
 			w.WriteHeader(http.StatusInternalServerError)
-			if err := templates.Error("Failed to fetch family member").Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering template: %v", err)
+			if renderErr := templates.Error("Failed to fetch family member").Render(r.Context(), w); renderErr != nil {
+				log.Printf("Error rendering template: %v", renderErr)
 			}
 		}
 		return
@@ -63,8 +63,8 @@ func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
 	if err != nil {
 		log.Printf("Error fetching items for family member %s: %v", name, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error("Failed to fetch items").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Failed to fetch items").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -72,8 +72,8 @@ func (s *server) handleFamilyView(w http.ResponseWriter, r *http.Request) {
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Failed to fetch family members").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -93,8 +93,8 @@ func (s *server) handleEdit(w http.ResponseWriter, r *http.Request) {
 	familyMembers, err := s.getAllFamilyMembers(r.Context())
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Failed to fetch family members").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}

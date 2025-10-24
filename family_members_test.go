@@ -20,7 +20,7 @@ import (
 func TestGetFamilyMembers(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/family_members", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/family_members", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyMembers(rr, req)
@@ -147,7 +147,7 @@ func TestCascadeDeleteFamilyMemberDeletesItems(t *testing.T) {
 	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (family_member_id, name) VALUES (1, "child item")`)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest("DELETE", "/api/family_members/1", nil)
+	req := httptest.NewRequest("DELETE", "/api/family_members/1", http.NoBody)
 	req.AddCookie(cookie)
 
 	rr := httptest.NewRecorder()

@@ -81,8 +81,8 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	data, err := parseRequestBody(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid request body").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid request body").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -93,8 +93,8 @@ func (s *server) createFamilyMember(w http.ResponseWriter, r *http.Request) {
 	}
 	if len(name) > 200 {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Name too long (max 200 characters)").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Name too long (max 200 characters)").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -152,8 +152,8 @@ func (s *server) deleteFamilyMember(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/family_members/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid family member ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid family member ID").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -188,8 +188,8 @@ func (s *server) updateFamilyMember(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/family_members/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid family member ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid family member ID").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -197,8 +197,8 @@ func (s *server) updateFamilyMember(w http.ResponseWriter, r *http.Request) {
 	data, err := parseRequestBody(r)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid request body").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid request body").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -206,8 +206,8 @@ func (s *server) updateFamilyMember(w http.ResponseWriter, r *http.Request) {
 	name := data["name"]
 	if strings.TrimSpace(name) == "" {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Name is required").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Name is required").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}

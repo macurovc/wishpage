@@ -173,8 +173,8 @@ func (e *emailService) sendMailTLS(addr string, auth smtp.Auth, from string, to 
 		return fmt.Errorf("failed to dial with TLS: %w", err)
 	}
 	defer func() {
-		if err := conn.Close(); err != nil {
-			log.Printf("Error closing TLS connection: %v", err)
+		if closeErr := conn.Close(); closeErr != nil {
+			log.Printf("Error closing TLS connection: %v", closeErr)
 		}
 	}()
 
@@ -184,8 +184,8 @@ func (e *emailService) sendMailTLS(addr string, auth smtp.Auth, from string, to 
 		return fmt.Errorf("failed to create SMTP client: %w", err)
 	}
 	defer func() {
-		if err := client.Close(); err != nil {
-			log.Printf("Error closing SMTP client: %v", err)
+		if closeErr := client.Close(); closeErr != nil {
+			log.Printf("Error closing SMTP client: %v", closeErr)
 		}
 	}()
 
@@ -214,8 +214,8 @@ func (e *emailService) sendMailTLS(addr string, auth smtp.Auth, from string, to 
 		return fmt.Errorf("failed to get data writer: %w", err)
 	}
 	defer func() {
-		if err := writer.Close(); err != nil {
-			log.Printf("Error closing data writer: %v", err)
+		if closeErr := writer.Close(); closeErr != nil {
+			log.Printf("Error closing data writer: %v", closeErr)
 		}
 	}()
 
@@ -261,7 +261,7 @@ func (e *emailService) notifyItemAdded(itemName, familyMemberName, link string, 
 
 	linkStr := "N/A"
 	if link != "" {
-		linkStr = fmt.Sprintf(`<a href="%s">%s</a>`, template.HTMLEscapeString(link), template.HTMLEscapeString(link))
+		linkStr = fmt.Sprintf(`<a href=%q>%s</a>`, template.HTMLEscapeString(link), template.HTMLEscapeString(link))
 	}
 
 	htmlContent := fmt.Sprintf(`

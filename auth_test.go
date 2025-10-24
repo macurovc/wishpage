@@ -122,7 +122,7 @@ func TestSessionStoreConcurrency(_ *testing.T) {
 func TestLoginPageDisplays(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLoginPage(rr, req)
@@ -135,7 +135,7 @@ func TestLoginPageDisplays(t *testing.T) {
 func TestLoginPageWithError(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/login?error=password", nil)
+	req := httptest.NewRequest(http.MethodGet, "/login?error=password", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLoginPage(rr, req)
@@ -152,7 +152,7 @@ func TestLoginPageRedirectsIfAuthenticated(t *testing.T) {
 	token := "valid-token"
 	s.sessions.create(token, time.Now().Add(1*time.Hour))
 
-	req := httptest.NewRequest(http.MethodGet, "/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
 	req.AddCookie(&http.Cookie{
 		Name:  "session_token",
 		Value: token,
@@ -245,7 +245,7 @@ func TestLoginPasswordNotConfigured(t *testing.T) {
 func TestLoginInvalidMethod(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/login", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/login", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogin(rr, req)
@@ -291,7 +291,7 @@ func TestLogoutSuccess(t *testing.T) {
 	assert.True(t, s.sessions.isValid(token))
 
 	// Now logout
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", nil)
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
 	logoutReq.AddCookie(cookie)
 	logoutRR := httptest.NewRecorder()
 	s.handleLogout(logoutRR, logoutReq)
@@ -313,7 +313,7 @@ func TestLogoutSuccess(t *testing.T) {
 func TestLogoutWithoutCookie(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/logout", nil)
+	req := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogout(rr, req)
@@ -326,7 +326,7 @@ func TestLogoutWithoutCookie(t *testing.T) {
 func TestLogoutInvalidMethod(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/logout", nil)
+	req := httptest.NewRequest(http.MethodGet, "/api/logout", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogout(rr, req)
@@ -356,7 +356,7 @@ func TestRequireAuthWithValidSession(t *testing.T) {
 	protectedHandler := s.requireAuth(testHandler)
 
 	// Make request with valid session cookie
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
 		Name:  "session_token",
 		Value: token,
@@ -378,7 +378,7 @@ func TestRequireAuthWithoutCookie(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	protectedHandler(rr, req)
@@ -397,7 +397,7 @@ func TestRequireAuthWithInvalidToken(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
 		Name:  "session_token",
 		Value: "invalid-token",
@@ -424,7 +424,7 @@ func TestRequireAuthWithExpiredToken(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
 		Name:  "session_token",
 		Value: token,
@@ -469,7 +469,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	})
 	protectedHandler := s.requireAuth(testHandler)
 
-	accessReq := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	accessReq := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	accessReq.AddCookie(sessionCookie)
 	accessRR := httptest.NewRecorder()
 	protectedHandler(accessRR, accessReq)
@@ -478,7 +478,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	assert.Contains(t, accessRR.Body.String(), "Protected content")
 
 	// 3. Logout
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", nil)
+	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
 	logoutReq.AddCookie(sessionCookie)
 	logoutRR := httptest.NewRecorder()
 	s.handleLogout(logoutRR, logoutReq)
@@ -487,7 +487,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	assert.Equal(t, "/", logoutRR.Header().Get("Location"))
 
 	// 4. Try to access protected resource after logout
-	accessReq2 := httptest.NewRequest(http.MethodGet, "/protected", nil)
+	accessReq2 := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
 	accessReq2.AddCookie(sessionCookie)
 	accessRR2 := httptest.NewRecorder()
 	protectedHandler(accessRR2, accessReq2)

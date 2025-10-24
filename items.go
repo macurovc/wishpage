@@ -28,59 +28,61 @@ func (s *server) handleItems(w http.ResponseWriter, r *http.Request) {
 }
 
 func (s *server) handleItemsID(w http.ResponseWriter, r *http.Request) {
-	switch {
-	case strings.HasSuffix(r.URL.Path, "/reserve-confirm"):
-		if r.Method == http.MethodGet {
-			s.reserveConfirm(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering template: %v", err)
-			}
-		}
-		return
-	case strings.HasSuffix(r.URL.Path, "/reserve-cancel"):
-		if r.Method == http.MethodGet {
-			s.reserveCancel(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering template: %v", err)
-			}
-		}
-		return
-	case strings.HasSuffix(r.URL.Path, "/reserve"):
-		if r.Method == http.MethodPut {
-			s.reserveItem(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering template: %v", err)
-			}
-		}
-		return
-	case strings.HasSuffix(r.URL.Path, "/unreserve"):
-		if r.Method == http.MethodPut {
-			s.requireAuth(s.unreserveItem)(w, r)
-		} else {
-			w.WriteHeader(http.StatusMethodNotAllowed)
-			if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
-				log.Printf("Error rendering template: %v", err)
-			}
-		}
+	// Handle special reservation endpoints
+	if handled := s.handleReservationEndpoints(w, r); handled {
 		return
 	}
 
+	// Handle regular item operations
 	switch r.Method {
 	case http.MethodPut:
 		s.requireAuth(s.updateItem)(w, r)
 	case http.MethodDelete:
 		s.requireAuth(s.deleteItem)(w, r)
 	default:
-		w.WriteHeader(http.StatusMethodNotAllowed)
-		if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
-		}
+		s.renderMethodNotAllowed(w, r)
+	}
+}
+
+// handleReservationEndpoints routes reservation-related endpoints and returns true if handled.
+func (s *server) handleReservationEndpoints(w http.ResponseWriter, r *http.Request) bool {
+	path := r.URL.Path
+
+	if strings.HasSuffix(path, "/reserve-confirm") {
+		s.handleMethodOrError(w, r, http.MethodGet, s.reserveConfirm)
+		return true
+	}
+	if strings.HasSuffix(path, "/reserve-cancel") {
+		s.handleMethodOrError(w, r, http.MethodGet, s.reserveCancel)
+		return true
+	}
+	if strings.HasSuffix(path, "/reserve") {
+		s.handleMethodOrError(w, r, http.MethodPut, s.reserveItem)
+		return true
+	}
+	if strings.HasSuffix(path, "/unreserve") {
+		handler := s.requireAuth(s.unreserveItem)
+		s.handleMethodOrError(w, r, http.MethodPut, handler)
+		return true
+	}
+
+	return false
+}
+
+// handleMethodOrError calls handler if method matches, otherwise renders method not allowed error.
+func (s *server) handleMethodOrError(w http.ResponseWriter, r *http.Request, expectedMethod string, handler http.HandlerFunc) {
+	if r.Method == expectedMethod {
+		handler(w, r)
+	} else {
+		s.renderMethodNotAllowed(w, r)
+	}
+}
+
+// renderMethodNotAllowed renders a "Method not allowed" error response.
+func (s *server) renderMethodNotAllowed(w http.ResponseWriter, r *http.Request) {
+	w.WriteHeader(http.StatusMethodNotAllowed)
+	if err := templates.Error("Method not allowed").Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
 	}
 }
 
@@ -90,7 +92,7 @@ func (s *server) getAllItems(ctx context.Context, familyMemberID string) ([]mode
         FROM items 
         JOIN family_members ON items.family_member_id = family_members.id
     `
-	args := []interface{}{}
+	args := []any{}
 	if familyMemberID != "" {
 		query += " WHERE family_member_id = ?"
 		args = append(args, familyMemberID)
@@ -150,8 +152,8 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 	if err != nil {
 		log.Printf("Error fetching items for family member %s: %v", familyMemberID, err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error("Failed to fetch items").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Failed to fetch items").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -160,8 +162,8 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 	if err != nil {
 		log.Printf("Error fetching family members: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error("Failed to fetch family members").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Failed to fetch family members").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -282,7 +284,7 @@ func validateAndNormalizeName(name string) (string, error) {
 
 // itemNameExists checks if an item with the given name already exists for the family member.
 // The excludeItemID parameter allows excluding a specific item (useful for updates).
-func (s *server) itemNameExists(ctx context.Context, name string, familyMemberID int, excludeItemID int) (bool, error) {
+func (s *server) itemNameExists(ctx context.Context, name string, familyMemberID, excludeItemID int) (bool, error) {
 	var count int
 	query := "SELECT COUNT(*) FROM items WHERE family_member_id = ? AND name = ? AND id != ?"
 	err := s.db.QueryRowContext(ctx, query, familyMemberID, name, excludeItemID).Scan(&count)
@@ -293,7 +295,7 @@ func (s *server) itemNameExists(ctx context.Context, name string, familyMemberID
 }
 
 // resolveFamilyMemberID determines the family member ID from body, header, or defaults to first available.
-func (s *server) resolveFamilyMemberID(r *http.Request, bodyID string) (int, string, error) {
+func (s *server) resolveFamilyMemberID(r *http.Request, bodyID string) (id int, idStr string, err error) {
 	// Try body ID first
 	if bodyID != "" {
 		return s.parseAndValidateFamilyMemberID(bodyID)
@@ -316,8 +318,8 @@ func (s *server) resolveFamilyMemberID(r *http.Request, bodyID string) (int, str
 }
 
 // parseAndValidateFamilyMemberID converts and validates a family member ID string.
-func (s *server) parseAndValidateFamilyMemberID(idStr string) (int, string, error) {
-	id, err := strconv.Atoi(idStr)
+func (s *server) parseAndValidateFamilyMemberID(idStr string) (id int, idString string, err error) {
+	id, err = strconv.Atoi(idStr)
 	if err != nil {
 		return 0, "", fmt.Errorf("invalid family member ID")
 	}
@@ -460,9 +462,9 @@ func (s *server) executeItemUpdate(ctx context.Context, itemID int, data *reques
 }
 
 // buildUpdateQuery constructs the SET clause and arguments for an UPDATE query based on provided data.
-func buildUpdateQuery(data *requestBodyData) ([]string, []any, error) {
-	setParts := []string{}
-	args := []any{}
+func buildUpdateQuery(data *requestBodyData) (setParts []string, args []any, err error) {
+	setParts = []string{}
+	args = []any{}
 
 	if strings.TrimSpace(data.Name) != "" {
 		setParts = append(setParts, "name = ?")
@@ -510,8 +512,8 @@ func (s *server) updateItemReservation(w http.ResponseWriter, r *http.Request, r
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid item ID").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -554,8 +556,8 @@ func (s *server) deleteItem(w http.ResponseWriter, r *http.Request) {
 	id, err := parseIDFromPath("/api/items/", r.URL.Path)
 	if err != nil {
 		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error("Invalid item ID").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}

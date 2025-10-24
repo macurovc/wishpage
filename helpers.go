@@ -32,7 +32,7 @@ func parseRequestBody(r *http.Request) (map[string]string, error) {
 	ct := r.Header.Get("Content-Type")
 
 	if strings.Contains(ct, "application/json") {
-		var payload map[string]interface{}
+		var payload map[string]any
 		if err := json.Unmarshal(body, &payload); err != nil {
 			return nil, err
 		}

@@ -19,7 +19,7 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -37,7 +37,7 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 func TestHandleIndexEmptyState(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -60,7 +60,7 @@ func TestHandleFamilyView(t *testing.T) {
 	price := 25.0
 	createItem(t, s, aliceID, "Alice's Widget", &price)
 
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", nil)
+	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyView(rr, req)
@@ -76,7 +76,7 @@ func TestHandleFamilyView(t *testing.T) {
 func TestHandleFamilyViewInvalidID(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/family/NonExistent", nil)
+	req := httptest.NewRequest(http.MethodGet, "/family/NonExistent", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyView(rr, req)
@@ -94,7 +94,7 @@ func TestHandleFamilyViewActiveTabHighlight(t *testing.T) {
 	price := 10.0
 	createItem(t, s, aliceID, "Alice Item", &price)
 
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", nil)
+	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyView(rr, req)
@@ -122,7 +122,7 @@ func TestHandleEditRedirectsToFirstFamily(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", nil)
+	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
 	req.AddCookie(cookie)
 	rr := httptest.NewRecorder()
 
@@ -149,7 +149,7 @@ func TestHandleEdit(t *testing.T) {
 	createItem(t, s, aliceID, "Alice Item", &price1)
 	createItem(t, s, bobID, "Bob Item", &price2)
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", nil)
+	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
 	req.AddCookie(cookie)
 	rr := httptest.NewRecorder()
 
@@ -172,7 +172,7 @@ func TestHandleEdit(t *testing.T) {
 func TestHandleEditRequiresAuth(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", nil)
+	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
 	// No authentication cookie
 
 	rr := httptest.NewRecorder()
@@ -193,7 +193,7 @@ func TestFamilyViewLinksAreRegularNotHTMX(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/", nil)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -214,7 +214,7 @@ func TestFamilyViewUsesNameInURL(t *testing.T) {
 	createItem(t, s, aliceID, "Alice's Item", &price)
 
 	// Access by name in URL
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", nil)
+	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyView(rr, req)
