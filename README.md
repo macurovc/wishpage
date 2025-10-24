@@ -18,7 +18,8 @@ A simple wishlist management application built with Go, HTMX, and SQLite. Featur
 ### Prerequisites
 
 - Go 1.25 or higher
-- SQLite3
+- SQLite3 (required for building - the `go-sqlite3` driver uses CGO)
+- `golangci-lint` (optional, for development - see Development Tools section)
 
 ### Installation
 
@@ -134,6 +135,36 @@ export EMAIL_TO=recipient@example.com
 
 ## Development
 
+### Development Tools
+
+The project includes a Makefile with convenient commands for development:
+
+```bash
+# Validate everything (format, lint, test, tidy) - run this before committing!
+make validate
+
+# Show all available commands
+make help
+
+# Individual commands:
+make fmt         # Format all Go code with go fmt
+make lint        # Run golangci-lint with comprehensive checks
+make test        # Run all tests with race detection and coverage
+make tidy        # Clean up go.mod and verify dependencies
+make clean       # Remove build artifacts and caches
+```
+
+**Prerequisites for development tools:**
+- `golangci-lint` is required for `make lint` and `make validate`
+- Install on macOS: `brew install golangci-lint`
+- Install on Linux: `curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin`
+- See [installation guide](https://golangci-lint.run/usage/install/) for other platforms
+
+**Recommended workflow:**
+- Run `make validate` before committing changes
+- This ensures code is formatted, passes linting, and all tests pass
+- The linter checks 33 different rules for code quality, security, and style
+
 ### Running Tests
 
 ```bash
@@ -145,6 +176,9 @@ go test -v ./...
 
 # Run specific test
 go test -v -run TestEmailService
+
+# Run tests with coverage (or use 'make test')
+go test -v -race -coverprofile=coverage.out ./...
 ```
 
 ### Generating Templates
@@ -184,6 +218,9 @@ wishpage/
 ├── static/
 │   └── css/
 │       └── styles.css      # Application styles
+├── Makefile                 # Development commands (validate, test, lint, fmt)
+├── .golangci.yml            # Linter configuration (33 enabled checks)
+├── go.mod                   # Go module dependencies
 └── *_test.go               # Test files
 ```
 
@@ -299,13 +336,19 @@ This application uses Go's `embed` directive to include all static files (CSS, J
 
 ### Using Docker
 
-1. **Build the Docker image:**
+1. **Validate the code before building (recommended):**
+
+   ```bash
+   make validate
+   ```
+
+2. **Build the Docker image:**
 
    ```bash
    docker build -t wishpage .
    ```
 
-2. **Run the Docker container:**
+3. **Run the Docker container:**
 
    ```bash
    docker run -d \
@@ -321,25 +364,32 @@ This application uses Go's `embed` directive to include all static files (CSS, J
    - The `-v` flag mounts a local directory (`./data`) into the container at `/data` for database persistence
    - Without the volume mount, your data will be lost if the container is removed
 
-3. **Access the application:**
+4. **Access the application:**
 
    The application will be accessible at `http://localhost:3002`
 
 ### Manual Deployment
 
-1. Build the application:
+1. **Validate the code before building:**
+```bash
+make validate
+```
+
+This ensures your code is properly formatted, passes all linter checks, and all tests pass.
+
+2. **Build the application:**
 ```bash
 go build -o wishpage
 ```
 
 This creates a single, self-contained binary with all static files embedded.
 
-2. Copy the binary to your server:
+3. **Copy the binary to your server:**
 ```bash
 scp wishpage your-server:/opt/wishpage/
 ```
 
-3. Set environment variables on your server:
+4. **Set environment variables on your server:**
 ```bash
 export EDIT_PASSWORD="your-secure-password"
 export DATABASE_PATH="/var/lib/wishpage/wishlist.db"
@@ -349,15 +399,16 @@ export EMAIL_PASS="your-app-password"
 export EMAIL_TO="recipient@example.com"
 ```
 
-4. Run the binary:
+5. **Run the binary:**
 ```bash
 ./wishpage
 ```
 
 **That's it!** No need to copy the `static/` directory - it's already in the binary.
 
-5. Consider using a process manager like systemd or supervisor
-6. Put behind a reverse proxy (nginx/Caddy) for HTTPS
+**Additional recommendations:**
+- Consider using a process manager like systemd or supervisor (see example below)
+- Put behind a reverse proxy (nginx/Caddy) for HTTPS
 
 ### Example systemd Service
 
@@ -417,9 +468,14 @@ sudo systemctl start wishpage
 ## Contributing
 
 Contributions are welcome! Please ensure:
-- Tests pass: `go test ./...`
-- Code is formatted: `go fmt ./...`
-- Templates are regenerated: `templ generate`
+- All validation checks pass: `make validate`
+- Templates are regenerated: `templ generate` (if you modified `.templ` files)
+
+The `make validate` command will automatically:
+- Format your code with `go fmt`
+- Run comprehensive linting checks
+- Run all tests with race detection
+- Verify dependencies are clean
 
 ## License
 
