@@ -119,6 +119,7 @@ func (e *emailService) verify() error {
 }
 
 // sendNotificationEmail sends an email with the given subject and HTML content.
+// This should typically be called with 'go' to avoid blocking the HTTP response.
 func (e *emailService) sendNotificationEmail(subject, htmlContent string) {
 	if !e.enabled {
 		log.Println("Email service is not enabled. Skipping email notification.")
@@ -273,7 +274,7 @@ func (e *emailService) notifyItemAdded(itemName, familyMemberName, link string, 
 		</ul>
 	`, template.HTMLEscapeString(itemName), template.HTMLEscapeString(familyMemberName), priceStr, linkStr)
 
-	e.sendNotificationEmail("New Item Added", htmlContent)
+	go e.sendNotificationEmail("New Item Added", htmlContent)
 }
 
 func (e *emailService) notifyItemReserved(itemName, familyMemberName string, reserved bool) {
@@ -293,7 +294,7 @@ func (e *emailService) notifyItemReserved(itemName, familyMemberName string, res
 		</ul>
 	`, template.HTMLEscapeString(itemName), template.HTMLEscapeString(familyMemberName), status)
 
-	e.sendNotificationEmail(fmt.Sprintf("Item %s", action), htmlContent)
+	go e.sendNotificationEmail(fmt.Sprintf("Item %s", action), htmlContent)
 }
 
 func (e *emailService) notifyItemDeleted(itemName, familyMemberName string) {
@@ -305,7 +306,7 @@ func (e *emailService) notifyItemDeleted(itemName, familyMemberName string) {
 		</ul>
 	`, template.HTMLEscapeString(itemName), template.HTMLEscapeString(familyMemberName))
 
-	e.sendNotificationEmail("Item Deleted", htmlContent)
+	go e.sendNotificationEmail("Item Deleted", htmlContent)
 }
 
 func (e *emailService) notifyFamilyMemberAdded(name string) {
@@ -313,7 +314,7 @@ func (e *emailService) notifyFamilyMemberAdded(name string) {
 		`<p>A new family member has been added: <strong>%s</strong></p>`,
 		template.HTMLEscapeString(name),
 	)
-	e.sendNotificationEmail("New Family Member Added", htmlContent)
+	go e.sendNotificationEmail("New Family Member Added", htmlContent)
 }
 
 func (e *emailService) notifyFamilyMemberDeleted(name string) {
@@ -321,5 +322,5 @@ func (e *emailService) notifyFamilyMemberDeleted(name string) {
 		`<p>A family member has been deleted: <strong>%s</strong></p>`,
 		template.HTMLEscapeString(name),
 	)
-	e.sendNotificationEmail("Family Member Deleted", htmlContent)
+	go e.sendNotificationEmail("Family Member Deleted", htmlContent)
 }
