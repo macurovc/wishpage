@@ -24,14 +24,17 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 
 	s.handleIndex(rr, req)
 
-	// Should show view page with no member selected
+	// Should show view page with collapsible family sections
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 	assert.Contains(t, body, "Alice")
 	assert.Contains(t, body, "Bob")
-	assert.Contains(t, body, "Select a family member above")
-	// No active tab since no member is selected
-	assert.NotContains(t, body, "nav-link active")
+	// Should have collapsible sections
+	assert.Contains(t, body, "family-section")
+	assert.Contains(t, body, "<details")
+	assert.Contains(t, body, "<summary")
+	// All sections should be collapsed by default
+	assert.NotContains(t, body, "open")
 }
 
 func TestHandleIndexEmptyState(t *testing.T) {
@@ -51,41 +54,7 @@ func TestHandleIndexEmptyState(t *testing.T) {
 // Family View Tests
 // ========================================
 
-func TestHandleFamilyView(t *testing.T) {
-	s := newTestServer(t)
-
-	aliceID := createFamilyMember(t, s, "Alice")
-	createFamilyMember(t, s, "Bob")
-
-	price := 25.0
-	createItem(t, s, aliceID, "Alice's Widget", &price)
-
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
-	rr := httptest.NewRecorder()
-
-	s.handleFamilyView(rr, req)
-
-	assert.Equal(t, http.StatusOK, rr.Code)
-	body := rr.Body.String()
-	assert.Contains(t, body, "Alice")
-	assert.Contains(t, body, "Bob")
-	// Apostrophe is HTML-encoded as &#39;
-	assert.Contains(t, body, "Alice&#39;s Widget")
-}
-
-func TestHandleFamilyViewInvalidID(t *testing.T) {
-	s := newTestServer(t)
-
-	req := httptest.NewRequest(http.MethodGet, "/family/NonExistent", http.NoBody)
-	rr := httptest.NewRecorder()
-
-	s.handleFamilyView(rr, req)
-
-	// Should return 404 for non-existent family member
-	assert.Equal(t, http.StatusNotFound, rr.Code)
-}
-
-func TestHandleFamilyViewActiveTabHighlight(t *testing.T) {
+func TestHandleFamilyViewCollapsibleSections(t *testing.T) {
 	s := newTestServer(t)
 
 	aliceID := createFamilyMember(t, s, "Alice")
@@ -94,18 +63,22 @@ func TestHandleFamilyViewActiveTabHighlight(t *testing.T) {
 	price := 10.0
 	createItem(t, s, aliceID, "Alice Item", &price)
 
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
-	s.handleFamilyView(rr, req)
+	s.handleIndex(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 
-	// Should have Alice tab as active
+	// Should have family member names
 	assert.Contains(t, body, "Alice")
-	// Should show Alice's item
+	// Should show Alice's item in a collapsible section
 	assert.Contains(t, body, "Alice Item")
+	assert.Contains(t, body, "family-section")
+	assert.Contains(t, body, "<details")
+	// Should show item count
+	assert.Contains(t, body, "items")
 }
 
 // ========================================
@@ -187,7 +160,7 @@ func TestHandleEditRequiresAuth(t *testing.T) {
 // URL Routing Tests
 // ========================================
 
-func TestFamilyViewLinksAreRegularNotHTMX(t *testing.T) {
+func TestFamilyViewUsesCollapsibleSections(t *testing.T) {
 	s := newTestServer(t)
 
 	createFamilyMember(t, s, "Alice")
@@ -201,27 +174,45 @@ func TestFamilyViewLinksAreRegularNotHTMX(t *testing.T) {
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
 
-	// Links should be regular href links, not HTMX
-	assert.Contains(t, body, "/family/Alice")
-	assert.Contains(t, body, "/family/Bob")
+	// Should use collapsible details/summary elements
+	assert.Contains(t, body, "<details")
+	assert.Contains(t, body, "<summary")
+	// Should have family names
+	assert.Contains(t, body, "Alice")
+	assert.Contains(t, body, "Bob")
 }
 
-func TestFamilyViewUsesNameInURL(t *testing.T) {
+func TestAllFamilySectionsCollapsedByDefault(t *testing.T) {
 	s := newTestServer(t)
 
+	// Create multiple family members with items
 	aliceID := createFamilyMember(t, s, "Alice")
-	price := 15.0
-	createItem(t, s, aliceID, "Alice's Item", &price)
+	bobID := createFamilyMember(t, s, "Bob")
 
-	// Access by name in URL
-	req := httptest.NewRequest(http.MethodGet, "/family/Alice", http.NoBody)
+	price1, price2 := 10.0, 20.0
+	createItem(t, s, aliceID, "Alice's First Item", &price1)
+	createItem(t, s, bobID, "Bob's Item", &price2)
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
-	s.handleFamilyView(rr, req)
+	s.handleIndex(rr, req)
 
 	assert.Equal(t, http.StatusOK, rr.Code)
 	body := rr.Body.String()
-	assert.Contains(t, body, "Alice")
-	// Apostrophe is HTML-encoded as &#39;
-	assert.Contains(t, body, "Alice&#39;s Item")
+
+	// Both items should be in the HTML
+	assert.Contains(t, body, "Alice&#39;s First Item")
+	assert.Contains(t, body, "Bob&#39;s Item")
+
+	// Should have collapsible sections
+	assert.Contains(t, body, "<details")
+	assert.Contains(t, body, "family-section")
+
+	// All sections should be collapsed by default
+	assert.NotContains(t, body, "open")
+
+	// Should show item counts
+	assert.Contains(t, body, "1 items") // Alice
+	assert.Contains(t, body, "1 items") // Bob
 }

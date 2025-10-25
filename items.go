@@ -48,14 +48,7 @@ func (s *server) handleItemsID(w http.ResponseWriter, r *http.Request) {
 func (s *server) handleReservationEndpoints(w http.ResponseWriter, r *http.Request) bool {
 	path := r.URL.Path
 
-	if strings.HasSuffix(path, "/reserve-confirm") {
-		s.handleMethodOrError(w, r, http.MethodGet, s.reserveConfirm)
-		return true
-	}
-	if strings.HasSuffix(path, "/reserve-cancel") {
-		s.handleMethodOrError(w, r, http.MethodGet, s.reserveCancel)
-		return true
-	}
+	// No longer need /reserve-confirm and /reserve-cancel endpoints - using CSS now!
 	if strings.HasSuffix(path, "/reserve") {
 		s.handleMethodOrError(w, r, http.MethodPut, s.reserveItem)
 		return true
@@ -181,6 +174,36 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 		if err := templates.ItemListView(items, members).Render(r.Context(), w); err != nil {
 			log.Printf("Error rendering template: %v", err)
 		}
+	}
+}
+
+// renderSingleItemCard renders just a single item card (for HTMX updates after reservation).
+func (s *server) renderSingleItemCard(w http.ResponseWriter, r *http.Request, itemID int) {
+	// Fetch the single item
+	item, err := s.getItemByID(r.Context(), itemID)
+	if err != nil {
+		log.Printf("Error fetching item %d: %v", itemID, err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if renderErr := templates.Error("Failed to fetch item").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
+		}
+		return
+	}
+
+	// Get all family members (needed for the template)
+	members, err := s.getAllFamilyMembers(r.Context())
+	if err != nil {
+		log.Printf("Error fetching family members: %v", err)
+		w.WriteHeader(http.StatusInternalServerError)
+		if renderErr := templates.Error("Failed to fetch family members").Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
+		}
+		return
+	}
+
+	// Render just the single card
+	if err := templates.ItemCardView(item, members).Render(r.Context(), w); err != nil {
+		log.Printf("Error rendering template: %v", err)
 	}
 }
 
@@ -530,8 +553,8 @@ func (s *server) updateItemReservation(w http.ResponseWriter, r *http.Request, r
 	_, err = s.db.ExecContext(r.Context(), "UPDATE items SET reserved = ? WHERE id = ?", reservedVal, id)
 	if err != nil {
 		w.WriteHeader(http.StatusInternalServerError)
-		if err := templates.Error(errMsg).Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
+		if renderErr := templates.Error(errMsg).Render(r.Context(), w); renderErr != nil {
+			log.Printf("Error rendering template: %v", renderErr)
 		}
 		return
 	}
@@ -540,8 +563,18 @@ func (s *server) updateItemReservation(w http.ResponseWriter, r *http.Request, r
 		s.emailService.notifyItemReserved(itemName, familyMemberName, reserved)
 	}
 
-	currentFam := getFamilyMemberIDForItem(s, r, id)
-	s.renderItemList(w, r, currentFam)
+	// Check if user is authenticated to determine what to render
+	cookie, err := r.Cookie("session_token")
+	isAuthenticated := err == nil && s.sessions.isValid(cookie.Value)
+
+	if isAuthenticated {
+		// In edit mode, render all items for the family member
+		currentFam := getFamilyMemberIDForItem(s, r, id)
+		s.renderItemList(w, r, currentFam)
+	} else {
+		// In view mode, return just the updated card HTML for the single item
+		s.renderSingleItemCard(w, r, id)
+	}
 }
 
 func (s *server) reserveItem(w http.ResponseWriter, r *http.Request) {
@@ -596,35 +629,7 @@ func (s *server) getItemDetailsForNotification(ctx context.Context, itemID int) 
 	return itemName, familyMemberName
 }
 
-func (s *server) reserveConfirm(w http.ResponseWriter, r *http.Request) {
-	id, err := parseIDFromPath("/api/items/", r.URL.Path)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
-		}
-		return
-	}
-
-	if err := templates.ReserveConfirmation(id).Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering template: %v", err)
-	}
-}
-
-func (s *server) reserveCancel(w http.ResponseWriter, r *http.Request) {
-	id, err := parseIDFromPath("/api/items/", r.URL.Path)
-	if err != nil {
-		w.WriteHeader(http.StatusBadRequest)
-		if err := templates.Error("Invalid item ID").Render(r.Context(), w); err != nil {
-			log.Printf("Error rendering template: %v", err)
-		}
-		return
-	}
-
-	if err := templates.ReserveButton(id).Render(r.Context(), w); err != nil {
-		log.Printf("Error rendering template: %v", err)
-	}
-}
+// Removed reserveConfirm and reserveCancel - now using pure CSS with <details> element!
 
 // getFamilyMemberIDForItem is a helper that retrieves the family member ID from the request header
 // or derives it from the item's database record. This is used to preserve the current filter

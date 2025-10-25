@@ -21,51 +21,49 @@ templ View(items []models.Item, familyMembers []models.FamilyMember, selectedFam
             </div>
         </div>
 
-        @FamilyMemberListView(familyMembers, selectedFamilyID)
-
-        <div id="item-list" class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
-            @ItemListView(items, familyMembers)
-        </div>
+        @CollapsibleFamilySections(items, familyMembers)
 	}
 }
 
-templ FamilyMemberListView(members []models.FamilyMember, selectedFamilyID int) {
-    <div id="family-member-list" class="sticky-tabs">
-        if len(members) == 0 {
-            <div class="empty-state">
-                👥
-                <h3>No family members yet</h3>
-            </div>
-        }
-        <nav class="tabs-scroll">
-            <div class="nav nav-pills" id="family-tabs" role="tablist">
-                for _, member := range members {
-                    <div class="d-flex align-items-center me-2">
-                        <a class={ "nav-link", templ.KV("active", member.ID == selectedFamilyID) } href={ templ.URL("/family/" + member.Name) }>
-                            { member.Name }
-                        </a>
-                    </div>
-                }
-            </div>
-        </nav>
-    </div>
-}
-
-templ ItemListView(items []models.Item, familyMembers []models.FamilyMember) {
-    if len(items) == 0 {
-        <div class="col-12">
-            <div class="empty-state">
-                👆
-                <h3>Select a family member above</h3>
-            </div>
+templ CollapsibleFamilySections(items []models.Item, familyMembers []models.FamilyMember) {
+    if len(familyMembers) == 0 {
+        <div class="empty-state">
+            👥
+            <h3>No family members yet</h3>
+            <p>Add family members in edit mode to get started</p>
         </div>
-    }
-    for _, item := range items {
-        @itemCardView(item, familyMembers)
+    } else {
+        for _, member := range familyMembers {
+            <details class="family-section">
+                <summary class="family-section-header">
+                    <div class="family-section-title">
+                        <span class="family-icon">👤</span>
+                        <h3>{ member.Name }</h3>
+                    </div>
+                    <span class="item-count">{ strconv.Itoa(countItemsForMember(items, member.ID)) } items</span>
+                </summary>
+                <div class="family-section-content">
+                    <div class="row row-cols-1 row-cols-sm-2 row-cols-lg-3 row-cols-xl-4 g-4">
+                        if !hasItemsForMember(items, member.ID) {
+                            <div class="col-12">
+                                <div class="empty-state-small">
+                                    🎁 No items yet for { member.Name }
+                                </div>
+                            </div>
+                        }
+                        for _, item := range items {
+                            if item.FamilyMemberID == member.ID {
+                                @ItemCardView(item, familyMembers)
+                            }
+                        }
+                    </div>
+                </div>
+            </details>
+        }
     }
 }
 
-templ itemCardView(item models.Item, familyMembers []models.FamilyMember) {
+templ ItemCardView(item models.Item, familyMembers []models.FamilyMember) {
     <div class="col">
         <div class={ "card h-100", templ.KV("reserved-item", item.Reserved) } data-item-id={ strconv.Itoa(item.ID) }>
             <div class="card-body">
@@ -95,9 +93,7 @@ templ itemCardView(item models.Item, familyMembers []models.FamilyMember) {
                     if item.Reserved {
                         <span class="reserved-badge">Reserved</span>
                     } else {
-                        <div id={ "reserve-controls-" + strconv.Itoa(item.ID) }>
-                            @ReserveButton(item.ID)
-                        </div>
+                        @ReserveControls(item.ID)
                     }
                 </div>
             </div>
@@ -105,31 +101,56 @@ templ itemCardView(item models.Item, familyMembers []models.FamilyMember) {
     </div>
 }
 
-templ ReserveButton(itemID int) {
-    <button class="btn btn-primary btn-sm" 
-            hx-get={ "/api/items/" + strconv.Itoa(itemID) + "/reserve-confirm" }
-            hx-target={ "#reserve-controls-" + strconv.Itoa(itemID) }
-            hx-swap="innerHTML">
-        ✓
-        Reserve
-    </button>
+templ ReserveControls(itemID int) {
+    <details class="reserve-dropdown">
+        <summary class="btn btn-primary btn-sm">
+            <span>✓ Reserve</span>
+        </summary>
+        <div class="reserve-confirmation">
+            <p class="mb-2">Reserve this item?</p>
+            <div class="d-flex gap-2">
+                <button class="btn btn-success btn-sm" 
+                        hx-put={ "/api/items/" + strconv.Itoa(itemID) + "/reserve" }
+                        hx-target="closest .col"
+                        hx-swap="outerHTML">
+                    ✓ Confirm
+                </button>
+            </div>
+        </div>
+    </details>
 }
 
-templ ReserveConfirmation(itemID int) {
-    <div class="d-flex gap-2">
-        <button class="btn btn-secondary btn-sm" 
-                hx-get={ "/api/items/" + strconv.Itoa(itemID) + "/reserve-cancel" }
-                hx-target={ "#reserve-controls-" + strconv.Itoa(itemID) }
-                hx-swap="innerHTML">
-            ✗
-            Cancel
-        </button>
-        <button class="btn btn-success btn-sm" 
-                hx-put={ "/api/items/" + strconv.Itoa(itemID) + "/reserve" }
-                hx-target="#item-list">
-            ✓
-            Confirm
-        </button>
-    </div>
+templ ItemListView(items []models.Item, familyMembers []models.FamilyMember) {
+    if len(items) == 0 {
+        <div class="col-12">
+            <div class="empty-state">
+                👆
+                <h3>Select a family member above</h3>
+            </div>
+        </div>
+    }
+    for _, item := range items {
+        @ItemCardView(item, familyMembers)
+    }
 }
 
+// Helper function to check if member has any items
+func hasItemsForMember(items []models.Item, memberID int) bool {
+    for _, item := range items {
+        if item.FamilyMemberID == memberID {
+            return true
+        }
+    }
+    return false
+}
+
+// Helper function to count items for a member
+func countItemsForMember(items []models.Item, memberID int) int {
+    count := 0
+    for _, item := range items {
+        if item.FamilyMemberID == memberID {
+            count++
+        }
+    }
+    return count
+}

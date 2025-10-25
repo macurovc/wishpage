@@ -1,15 +1,16 @@
 # Wishpage
 
-A simple wishlist management application built with Go, HTMX, and SQLite. Features server-side rendering, minimal JavaScript, and a clean responsive UI.
+A simple wishlist management application built with Go, HTMX, and SQLite. Features server-side rendering, minimal JavaScript, collapsible family sections, and a clean responsive UI with a fresh mint color scheme.
 
 ## Features
 
 - 📝 Create and manage wishlist items for family members
-- 👥 Add and organize family members
-- ✅ Mark items as reserved/available
+- 👥 Add and organize family members with collapsible sections
+- ✅ Mark items as reserved/available with pure CSS dropdown (no extra HTTP requests)
 - 🔐 Password-protected editing mode
 - 📧 Email notifications for all changes
-- 🎨 Clean, responsive UI with HTMX for dynamic updates
+- 🎨 Clean, responsive UI with fresh mint color scheme
+- ⚡ HTMX for dynamic updates with minimal page reloads
 - 🔒 Session-based authentication
 - 📦 Uses templ for type-safe Go templates
 
@@ -229,16 +230,13 @@ wishpage/
 ### Public Endpoints (No Authentication Required)
 
 **Page Routes:**
-- `GET /` - Landing page (shows all family members, no items)
-- `GET /family/{name}` - View items for a specific family member (e.g., `/family/Alice`)
+- `GET /` - Landing page with collapsible sections for all family members and their items
 - `GET /login` - Login page
 - `GET /static/*` - Static files (CSS, JS, images)
 
 **API Routes:**
 - `GET /api/items` - Get all items (supports `?family_member_id=X` filter)
-- `GET /api/items/{id}/reserve-confirm` - Show reserve confirmation buttons (HTMX)
-- `GET /api/items/{id}/reserve-cancel` - Show reserve button again (HTMX)
-- `PUT /api/items/{id}/reserve` - Mark item as reserved
+- `PUT /api/items/{id}/reserve` - Mark item as reserved, returns updated item card HTML for HTMX
 - `GET /api/family_members` - Get all family members
 
 ### Protected Endpoints (Require Authentication)
@@ -266,9 +264,11 @@ wishpage/
 ### HTMX Integration
 
 The application uses HTMX for dynamic updates without full page reloads:
-- Item reservation toggles update in-place
+- Item reservation uses pure CSS `<details>` dropdown for confirmation (no HTTP request until confirmed)
+- Reservation confirmation updates just the single item card in-place
 - Adding/deleting items updates the list dynamically
 - Family member management happens without page navigation
+- Collapsible family sections use native HTML `<details>` elements
 - Smooth transitions and feedback
 
 ### Session Management

@@ -85,7 +85,6 @@ func (s *server) routes() {
 
 	// Application routes - Public view
 	s.mux.HandleFunc("/", s.handleIndex)
-	s.mux.HandleFunc("/family/", s.handleFamilyView)
 
 	// Auth routes
 	s.mux.HandleFunc("/login", s.handleLoginPage)
