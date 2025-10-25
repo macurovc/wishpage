@@ -46,3 +46,13 @@ $RECYCLE.BIN/
 
 # Environment files
 .env
+
+# Node.js and npm
+node_modules/
+package-lock.json
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+yarn.lock
+.npm
+.pnpm-debug.log*

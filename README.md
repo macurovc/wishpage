@@ -20,6 +20,7 @@ A simple wishlist management application built with Go, HTMX, and SQLite. Featur
 
 - Go 1.25 or higher
 - SQLite3 (required for building - the `go-sqlite3` driver uses CGO)
+- Node.js and npm (for CSS linting, optional - see Development Tools section)
 - `golangci-lint` (optional, for development - see Development Tools section)
 
 ### Installation
@@ -147,24 +148,49 @@ make validate
 # Show all available commands
 make help
 
-# Individual commands:
+# Individual Go commands:
 make fmt         # Format all Go code with go fmt
 make lint        # Run golangci-lint with comprehensive checks
 make test        # Run all tests with race detection and coverage
 make tidy        # Clean up go.mod and verify dependencies
-make clean       # Remove build artifacts and caches
+
+# CSS commands:
+make fmt-css        # Format CSS files with Prettier
+make fmt-css-check  # Check CSS formatting without modifying files
+make lint-css       # Run Stylelint on CSS files
+make lint-css-fix   # Run Stylelint and auto-fix CSS issues
+
+# Utility commands:
+make clean          # Remove build artifacts, caches, and node_modules
+make check-deps     # Verify all required tools are installed
+make npm-install    # Install npm dependencies for CSS tools
 ```
 
 **Prerequisites for development tools:**
+
+**Go Tools:**
 - `golangci-lint` is required for `make lint` and `make validate`
 - Install on macOS: `brew install golangci-lint`
 - Install on Linux: `curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin`
 - See [installation guide](https://golangci-lint.run/usage/install/) for other platforms
 
+**CSS Tools:**
+- Node.js and npm are required for CSS linting and formatting
+- Install from [nodejs.org](https://nodejs.org/) or via package manager
+- Run `npm install` or `make npm-install` to install Stylelint and Prettier
+- The CI pipeline automatically checks CSS formatting and linting
+
 **Recommended workflow:**
 - Run `make validate` before committing changes
-- This ensures code is formatted, passes linting, and all tests pass
-- The linter checks 33 different rules for code quality, security, and style
+- This ensures code is formatted (Go and CSS), passes linting, and all tests pass
+- The Go linter checks 33 different rules for code quality, security, and style
+- The CSS linter enforces best practices and prevents common mistakes
+
+**CI/CD Pipeline:**
+- GitHub Actions automatically runs on all pushes and pull requests
+- Parallel jobs check Go tests, Go linting, CSS formatting, CSS linting, and build
+- All checks must pass before merging
+- Coverage reports are uploaded to Codecov
 
 ### Running Tests
 
@@ -220,7 +246,10 @@ wishpage/
 │   └── css/
 │       └── styles.css      # Application styles
 ├── Makefile                 # Development commands (validate, test, lint, fmt)
-├── .golangci.yml            # Linter configuration (33 enabled checks)
+├── .golangci.yml            # Go linter configuration (33 enabled checks)
+├── .stylelintrc.json        # CSS linter configuration (Stylelint)
+├── .prettierrc.json         # CSS formatter configuration (Prettier)
+├── package.json             # Node.js dependencies for CSS tooling
 ├── go.mod                   # Go module dependencies
 └── *_test.go               # Test files
 ```
@@ -470,10 +499,12 @@ sudo systemctl start wishpage
 Contributions are welcome! Please ensure:
 - All validation checks pass: `make validate`
 - Templates are regenerated: `templ generate` (if you modified `.templ` files)
+- CSS linting passes if you modify styles: `make lint-css`
 
 The `make validate` command will automatically:
-- Format your code with `go fmt`
-- Run comprehensive linting checks
+- Format your Go code with `go fmt`
+- Format your CSS with Prettier
+- Run comprehensive linting checks (Go and CSS)
 - Run all tests with race detection
 - Verify dependencies are clean
 
