@@ -114,7 +114,7 @@ body {
 
 .login-form .btn-lg:hover {
     transform: translateY(-2px);
-    box-shadow: 0 8px 16px rgba(255, 127, 31, 30%);
+    box-shadow: 0 8px 16px rgba(126, 196, 184, 30%);
 }
 
 .back-link {
@@ -712,7 +712,7 @@ a i,
 
 .add-item-form .btn-primary:hover {
     transform: translateY(-2px);
-    box-shadow: 0 6px 16px rgba(255, 127, 31, 30%);
+    box-shadow: 0 6px 16px rgba(126, 196, 184, 30%);
 }
 
 @media (width <= 768px) {
