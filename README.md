@@ -242,8 +242,11 @@ wishpage/
 │   ├── login.templ         # Login page template
 │   └── error.templ         # Error template
 ├── static/
-│   └── css/
-│       └── styles.css      # Application styles
+│   ├── css/
+│   │   └── styles.css      # Application styles
+│   └── js/
+│       ├── htmx.min.js     # Vendored HTMX runtime
+│       └── htmx.LICENSE.txt
 ├── Makefile                 # Development commands (validate, test, lint, fmt)
 ├── .golangci.yml            # Go linter configuration (33 enabled checks)
 ├── .stylelintrc.json        # CSS linter configuration (Stylelint)
