@@ -3,14 +3,21 @@ package main
 import (
 	"database/sql"
 	"embed"
+	"errors"
 	"io/fs"
 	"log"
+	"log/slog"
 	"net/http"
 	"os"
+	"strconv"
 	"time"
 
 	_ "github.com/mattn/go-sqlite3"
 )
+
+const defaultPort = 3002
+
+var errInvalidPort = errors.New("PORT must be an integer between 1 and 65535")
 
 //go:embed static
 var staticFiles embed.FS
@@ -54,14 +61,14 @@ func main() {
 
 	s.routes()
 
-	port := os.Getenv("PORT")
-	if port == "" {
-		port = "3002"
+	port, err := parsePort(os.Getenv("PORT"))
+	if err != nil {
+		log.Fatal(errInvalidPort)
 	}
 
 	// Create HTTP server with timeouts for security
 	srv := &http.Server{
-		Addr:           ":" + port,
+		Addr:           ":" + strconv.Itoa(port),
 		Handler:        s.mux,
 		ReadTimeout:    15 * time.Second,
 		WriteTimeout:   15 * time.Second,
@@ -69,10 +76,22 @@ func main() {
 		MaxHeaderBytes: 1 << 20, // 1 MB
 	}
 
-	log.Printf("Server listening on http://localhost:%s", port)
+	slog.Info("Server listening", "url", "http://localhost:"+strconv.Itoa(port))
 	if err := srv.ListenAndServe(); err != nil {
 		log.Fatalf("Server failed: %v", err)
 	}
+}
+
+func parsePort(value string) (int, error) {
+	if value == "" {
+		return defaultPort, nil
+	}
+
+	port, err := strconv.Atoi(value)
+	if err != nil || port < 1 || port > 65535 {
+		return 0, errInvalidPort
+	}
+	return port, nil
 }
 
 func (s *server) routes() {

@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"strings"
 
@@ -167,7 +168,7 @@ func (s *server) deleteFamilyMember(w http.ResponseWriter, r *http.Request) {
 
 	_, err = s.db.ExecContext(r.Context(), "DELETE FROM family_members WHERE id = ?", id)
 	if err != nil {
-		log.Printf("Error deleting family member %d: %v", id, err)
+		slog.Error("Error deleting family member", "family_member_id", id, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := templates.Error("Failed to delete family member").Render(r.Context(), w); err != nil {
 			log.Printf("Error rendering template: %v", err)
@@ -213,7 +214,7 @@ func (s *server) updateFamilyMember(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if _, err := s.db.ExecContext(r.Context(), "UPDATE family_members SET name = ? WHERE id = ?", name, id); err != nil {
-		log.Printf("Error updating family member %d: %v", id, err)
+		slog.Error("Error updating family member", "family_member_id", id, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		if err := templates.Error("Failed to update family member").Render(r.Context(), w); err != nil {
 			log.Printf("Error rendering template: %v", err)

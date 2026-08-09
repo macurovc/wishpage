@@ -122,7 +122,7 @@ func TestSessionStoreConcurrency(_ *testing.T) {
 func TestLoginPageDisplays(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLoginPage(rr, req)
@@ -135,7 +135,7 @@ func TestLoginPageDisplays(t *testing.T) {
 func TestLoginPageWithError(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/login?error=password", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login?error=password", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLoginPage(rr, req)
@@ -152,9 +152,9 @@ func TestLoginPageRedirectsIfAuthenticated(t *testing.T) {
 	token := "valid-token"
 	s.sessions.create(token, time.Now().Add(1*time.Hour))
 
-	req := httptest.NewRequest(http.MethodGet, "/login", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/login", http.NoBody)
 	req.AddCookie(&http.Cookie{
-		Name:  "session_token",
+		Name:  sessionCookieName,
 		Value: token,
 	})
 	rr := httptest.NewRecorder()
@@ -177,7 +177,7 @@ func TestLoginSuccess(t *testing.T) {
 	form := url.Values{}
 	form.Add("password", "testpass123")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
@@ -192,9 +192,10 @@ func TestLoginSuccess(t *testing.T) {
 	require.Len(t, cookies, 1, "Should set exactly one cookie")
 
 	cookie := cookies[0]
-	assert.Equal(t, "session_token", cookie.Name)
+	assert.Equal(t, sessionCookieName, cookie.Name)
 	assert.NotEmpty(t, cookie.Value)
 	assert.True(t, cookie.HttpOnly, "Cookie should be HTTP-only")
+	assert.True(t, cookie.Secure, "Cookie should require HTTPS")
 	assert.Equal(t, http.SameSiteStrictMode, cookie.SameSite)
 	assert.Equal(t, 86400, cookie.MaxAge, "Cookie should have 24 hour max age")
 
@@ -209,7 +210,7 @@ func TestLoginIncorrectPassword(t *testing.T) {
 	form := url.Values{}
 	form.Add("password", "wrongpass")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
@@ -231,7 +232,7 @@ func TestLoginPasswordNotConfigured(t *testing.T) {
 	form := url.Values{}
 	form.Add("password", "anypass")
 
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
@@ -245,7 +246,7 @@ func TestLoginPasswordNotConfigured(t *testing.T) {
 func TestLoginInvalidMethod(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/login", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/login", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogin(rr, req)
@@ -258,7 +259,7 @@ func TestLoginInvalidFormData(t *testing.T) {
 	s := newTestServer(t)
 
 	// Send malformed form data
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader("%invalid%"))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader("%invalid%"))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
@@ -279,7 +280,7 @@ func TestLogoutSuccess(t *testing.T) {
 	form := url.Values{}
 	form.Add("password", "testpass")
 
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	loginRR := httptest.NewRecorder()
 	s.handleLogin(loginRR, loginReq)
@@ -291,7 +292,7 @@ func TestLogoutSuccess(t *testing.T) {
 	assert.True(t, s.sessions.isValid(token))
 
 	// Now logout
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
+	logoutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/logout", http.NoBody)
 	logoutReq.AddCookie(cookie)
 	logoutRR := httptest.NewRecorder()
 	s.handleLogout(logoutRR, logoutReq)
@@ -306,14 +307,15 @@ func TestLogoutSuccess(t *testing.T) {
 	// Check that cookie was cleared
 	cookies := logoutRR.Result().Cookies()
 	require.Len(t, cookies, 1)
-	assert.Equal(t, "session_token", cookies[0].Name)
+	assert.Equal(t, sessionCookieName, cookies[0].Name)
+	assert.True(t, cookies[0].Secure, "Cleared cookie should retain HTTPS security")
 	assert.Equal(t, -1, cookies[0].MaxAge, "Cookie should be deleted")
 }
 
 func TestLogoutWithoutCookie(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/logout", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogout(rr, req)
@@ -326,7 +328,7 @@ func TestLogoutWithoutCookie(t *testing.T) {
 func TestLogoutInvalidMethod(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/logout", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/logout", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleLogout(rr, req)
@@ -356,9 +358,9 @@ func TestRequireAuthWithValidSession(t *testing.T) {
 	protectedHandler := s.requireAuth(testHandler)
 
 	// Make request with valid session cookie
-	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
-		Name:  "session_token",
+		Name:  sessionCookieName,
 		Value: token,
 	})
 	rr := httptest.NewRecorder()
@@ -378,7 +380,7 @@ func TestRequireAuthWithoutCookie(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	protectedHandler(rr, req)
@@ -397,9 +399,9 @@ func TestRequireAuthWithInvalidToken(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
-		Name:  "session_token",
+		Name:  sessionCookieName,
 		Value: "invalid-token",
 	})
 	rr := httptest.NewRecorder()
@@ -424,9 +426,9 @@ func TestRequireAuthWithExpiredToken(t *testing.T) {
 
 	protectedHandler := s.requireAuth(testHandler)
 
-	req := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	req.AddCookie(&http.Cookie{
-		Name:  "session_token",
+		Name:  sessionCookieName,
 		Value: token,
 	})
 	rr := httptest.NewRecorder()
@@ -449,7 +451,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	// 1. Login
 	form := url.Values{}
 	form.Add("password", "testpass")
-	loginReq := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	loginReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	loginReq.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	loginRR := httptest.NewRecorder()
 	s.handleLogin(loginRR, loginReq)
@@ -469,7 +471,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	})
 	protectedHandler := s.requireAuth(testHandler)
 
-	accessReq := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	accessReq := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	accessReq.AddCookie(sessionCookie)
 	accessRR := httptest.NewRecorder()
 	protectedHandler(accessRR, accessReq)
@@ -478,7 +480,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	assert.Contains(t, accessRR.Body.String(), "Protected content")
 
 	// 3. Logout
-	logoutReq := httptest.NewRequest(http.MethodPost, "/api/logout", http.NoBody)
+	logoutReq := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/logout", http.NoBody)
 	logoutReq.AddCookie(sessionCookie)
 	logoutRR := httptest.NewRecorder()
 	s.handleLogout(logoutRR, logoutReq)
@@ -487,7 +489,7 @@ func TestLoginLogoutFlow(t *testing.T) {
 	assert.Equal(t, "/", logoutRR.Header().Get("Location"))
 
 	// 4. Try to access protected resource after logout
-	accessReq2 := httptest.NewRequest(http.MethodGet, "/protected", http.NoBody)
+	accessReq2 := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/protected", http.NoBody)
 	accessReq2.AddCookie(sessionCookie)
 	accessRR2 := httptest.NewRecorder()
 	protectedHandler(accessRR2, accessReq2)
@@ -508,7 +510,7 @@ func TestMultipleSessionsConcurrently(t *testing.T) {
 		go func() {
 			form := url.Values{}
 			form.Add("password", "testpass")
-			req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+			req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 			req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 			rr := httptest.NewRecorder()
 			s.handleLogin(rr, req)

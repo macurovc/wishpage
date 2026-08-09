@@ -19,7 +19,7 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -40,7 +40,7 @@ func TestHandleIndexShowsViewWithNoMemberSelected(t *testing.T) {
 func TestHandleIndexEmptyState(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -63,7 +63,7 @@ func TestHandleFamilyViewCollapsibleSections(t *testing.T) {
 	price := 10.0
 	createItem(t, s, aliceID, "Alice Item", &price)
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -95,7 +95,7 @@ func TestHandleEditRedirectsToFirstFamily(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/edit", http.NoBody)
 	req.AddCookie(cookie)
 	rr := httptest.NewRecorder()
 
@@ -122,7 +122,7 @@ func TestHandleEdit(t *testing.T) {
 	createItem(t, s, aliceID, "Alice Item", &price1)
 	createItem(t, s, bobID, "Bob Item", &price2)
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/edit", http.NoBody)
 	req.AddCookie(cookie)
 	rr := httptest.NewRecorder()
 
@@ -145,7 +145,7 @@ func TestHandleEdit(t *testing.T) {
 func TestHandleEditRequiresAuth(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/edit", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/edit", http.NoBody)
 	// No authentication cookie
 
 	rr := httptest.NewRecorder()
@@ -166,7 +166,7 @@ func TestFamilyViewUsesCollapsibleSections(t *testing.T) {
 	createFamilyMember(t, s, "Alice")
 	createFamilyMember(t, s, "Bob")
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)
@@ -193,7 +193,7 @@ func TestAllFamilySectionsCollapsedByDefault(t *testing.T) {
 	createItem(t, s, aliceID, "Alice's First Item", &price1)
 	createItem(t, s, bobID, "Bob's Item", &price2)
 
-	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleIndex(rr, req)

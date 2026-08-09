@@ -20,7 +20,7 @@ import (
 func TestGetFamilyMembers(t *testing.T) {
 	s := newTestServer(t)
 
-	req := httptest.NewRequest(http.MethodGet, "/api/family_members", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodGet, "/api/family_members", http.NoBody)
 	rr := httptest.NewRecorder()
 
 	s.handleFamilyMembers(rr, req)
@@ -37,7 +37,7 @@ func TestCreateFamilyMember(t *testing.T) {
 	form := url.Values{}
 	form.Add("name", "new member")
 
-	req := httptest.NewRequest("POST", "/api/family_members", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 
@@ -64,7 +64,7 @@ func TestCreateFamilyMemberJSONPassword(t *testing.T) {
 	cookie := loginAndGetCookie(t, s, "pw")
 
 	body := strings.NewReader(`{"name":"json member"}`)
-	req := httptest.NewRequest("POST", "/api/family_members", body)
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", body)
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(cookie)
 
@@ -89,7 +89,7 @@ func TestHeaderBasedEditPassword(t *testing.T) {
 
 	// Add a family member via cookie auth
 	body := strings.NewReader(`{"name":"header user"}`)
-	req := httptest.NewRequest("POST", "/api/family_members", body)
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", body)
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(cookie)
 
@@ -115,7 +115,7 @@ func TestDeleteFamilyMember(t *testing.T) {
 
 	form := url.Values{}
 
-	req := httptest.NewRequest("DELETE", "/api/family_members/1", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "DELETE", "/api/family_members/1", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 
@@ -147,7 +147,7 @@ func TestCascadeDeleteFamilyMemberDeletesItems(t *testing.T) {
 	_, err = s.db.ExecContext(t.Context(), `INSERT INTO items (family_member_id, name) VALUES (1, "child item")`)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest("DELETE", "/api/family_members/1", http.NoBody)
+	req := httptest.NewRequestWithContext(t.Context(), "DELETE", "/api/family_members/1", http.NoBody)
 	req.AddCookie(cookie)
 
 	rr := httptest.NewRecorder()
@@ -175,7 +175,7 @@ func TestCreateFamilyMemberUpdatesBothTargets(t *testing.T) {
 	// Submit as form, matching HTMX default
 	form := url.Values{}
 	form.Add("name", "newbie")
-	req := httptest.NewRequest("POST", "/api/family_members", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", strings.NewReader(form.Encode()))
 	req.Header.Add("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 
@@ -205,7 +205,7 @@ func TestCreateFamilyMemberWithForm(t *testing.T) {
 	formData := url.Values{}
 	formData.Set("name", "Form Member")
 
-	req := httptest.NewRequest("POST", "/api/family_members", strings.NewReader(formData.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", strings.NewReader(formData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 
@@ -235,7 +235,7 @@ func TestCreateFamilyMemberWithSpecialChars(t *testing.T) {
 	formData := url.Values{}
 	formData.Set("name", specialName)
 
-	req := httptest.NewRequest("POST", "/api/family_members", strings.NewReader(formData.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", strings.NewReader(formData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 
@@ -263,7 +263,7 @@ func TestUpdateFamilyMemberWithJSON(t *testing.T) {
 	jsonBody, err := json.Marshal(payload)
 	require.NoError(t, err)
 
-	req := httptest.NewRequest("PUT", "/api/family_members/1", bytes.NewBuffer(jsonBody))
+	req := httptest.NewRequestWithContext(t.Context(), "PUT", "/api/family_members/1", bytes.NewBuffer(jsonBody))
 	req.Header.Set("Content-Type", "application/json")
 	req.AddCookie(cookie)
 
@@ -291,7 +291,7 @@ func TestCreateFamilyMemberDuplicateName(t *testing.T) {
 	formData := url.Values{}
 	formData.Set("name", "Alice")
 
-	req := httptest.NewRequest("POST", "/api/family_members", strings.NewReader(formData.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), "POST", "/api/family_members", strings.NewReader(formData.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	req.AddCookie(cookie)
 

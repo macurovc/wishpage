@@ -89,7 +89,7 @@ func loginAndGetCookie(t *testing.T, s *server, password string) *http.Cookie {
 	form := url.Values{}
 	form.Add("password", password)
 
-	req := httptest.NewRequest(http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
+	req := httptest.NewRequestWithContext(t.Context(), http.MethodPost, "/api/login", strings.NewReader(form.Encode()))
 	req.Header.Set("Content-Type", "application/x-www-form-urlencoded")
 	rr := httptest.NewRecorder()
 
@@ -97,7 +97,7 @@ func loginAndGetCookie(t *testing.T, s *server, password string) *http.Cookie {
 
 	cookies := rr.Result().Cookies()
 	for _, cookie := range cookies {
-		if cookie.Name == "session_token" {
+		if cookie.Name == sessionCookieName {
 			return cookie
 		}
 	}

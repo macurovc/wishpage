@@ -7,6 +7,11 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+const (
+	testItemName         = "Test Item"
+	testFamilyMemberName = "John Doe"
+)
+
 func TestNewEmailService_Disabled(t *testing.T) {
 	tests := []struct {
 		name        string
@@ -123,29 +128,29 @@ func TestEmailService_NotifyItemAdded(t *testing.T) {
 	}{
 		{
 			name:             "with all fields",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			link:             "https://example.com/item",
 			price:            &price,
 		},
 		{
 			name:             "without link",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			link:             "",
 			price:            &price,
 		},
 		{
 			name:             "without price",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			link:             "https://example.com/item",
 			price:            nil,
 		},
 		{
 			name:             "minimal fields",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			link:             "",
 			price:            nil,
 		},
@@ -170,14 +175,14 @@ func TestEmailService_NotifyItemReserved(t *testing.T) {
 	}{
 		{
 			name:             "reserved",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			reserved:         true,
 		},
 		{
 			name:             "unreserved",
-			itemName:         "Test Item",
-			familyMemberName: "John Doe",
+			itemName:         testItemName,
+			familyMemberName: testFamilyMemberName,
 			reserved:         false,
 		},
 	}
@@ -194,19 +199,19 @@ func TestEmailService_NotifyItemDeleted(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
-	service.notifyItemDeleted("Test Item", "John Doe")
+	service.notifyItemDeleted(testItemName, testFamilyMemberName)
 }
 
 func TestEmailService_NotifyFamilyMemberAdded(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
-	service.notifyFamilyMemberAdded("John Doe")
+	service.notifyFamilyMemberAdded(testFamilyMemberName)
 }
 
 func TestEmailService_NotifyFamilyMemberDeleted(_ *testing.T) {
 	service := &emailService{enabled: false}
 
 	// Should not panic when disabled
-	service.notifyFamilyMemberDeleted("John Doe")
+	service.notifyFamilyMemberDeleted(testFamilyMemberName)
 }

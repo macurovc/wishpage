@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"strconv"
@@ -99,7 +100,7 @@ func (s *server) getAllItems(ctx context.Context, familyMemberID string) ([]mode
 
 	rows, err := s.db.QueryContext(ctx, query, args...)
 	if err != nil {
-		return nil, fmt.Errorf("failed to query items for family member %s: %w", familyMemberID, err)
+		return nil, fmt.Errorf("failed to query items: %w", err)
 	}
 	defer func() {
 		if err := rows.Close(); err != nil {
@@ -148,7 +149,7 @@ func scanItemRow(scanner interface {
 func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMemberID string) {
 	items, err := s.getAllItems(r.Context(), familyMemberID)
 	if err != nil {
-		log.Printf("Error fetching items for family member %s: %v", familyMemberID, err)
+		log.Printf("Error fetching items: %v", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		if renderErr := templates.Error("Failed to fetch items").Render(r.Context(), w); renderErr != nil {
 			log.Printf("Error rendering template: %v", renderErr)
@@ -167,7 +168,7 @@ func (s *server) renderItemList(w http.ResponseWriter, r *http.Request, familyMe
 	}
 
 	// Check if user is authenticated
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(sessionCookieName)
 	isAuthenticated := err == nil && s.sessions.isValid(cookie.Value)
 
 	if isAuthenticated {
@@ -187,7 +188,7 @@ func (s *server) renderSingleItemCard(w http.ResponseWriter, r *http.Request, it
 	// Fetch the single item
 	item, err := s.getItemByID(r.Context(), itemID)
 	if err != nil {
-		log.Printf("Error fetching item %d: %v", itemID, err)
+		slog.Error("Error fetching item", "item_id", itemID, "error", err)
 		w.WriteHeader(http.StatusInternalServerError)
 		if renderErr := templates.Error("Failed to fetch item").Render(r.Context(), w); renderErr != nil {
 			log.Printf("Error rendering template: %v", renderErr)
@@ -597,7 +598,7 @@ func (s *server) updateItemReservation(w http.ResponseWriter, r *http.Request, r
 	}
 
 	// Check if user is authenticated to determine what to render
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(sessionCookieName)
 	isAuthenticated := err == nil && s.sessions.isValid(cookie.Value)
 
 	if isAuthenticated {

@@ -67,8 +67,6 @@ go run .
 | `PORT` | Server port | `3002` |
 | `DATABASE_PATH` | Path to SQLite database | `./wishlist.db` (an existing legacy temp database is detected automatically) |
 | `EDIT_PASSWORD` | Password for edit mode | _(required for editing)_ |
-| `FORCE_SECURE_COOKIES` | Always use secure cookies (for testing) | Auto-detected based on request protocol |
-| `ALLOW_INSECURE_COOKIES` | Always use insecure cookies (for local dev) | Auto-detected based on request protocol |
 | `EMAIL_HOST` | SMTP server hostname | `smtp.gmail.com` |
 | `EMAIL_PORT` | SMTP server port | `587` |
 | `EMAIL_USER` | SMTP username | _(required for email)_ |
@@ -350,9 +348,7 @@ The email service supports:
 
 - Password-protected edit mode with constant-time comparison
 - Session-based authentication with automatic expiration (24 hours)
-- **Smart cookie security** - automatically detects HTTPS and sets Secure flag accordingly
-- HttpOnly cookies prevent XSS attacks on session tokens
-- SameSite=Strict cookies mitigate cross-site request forgery by withholding the session cookie from cross-site requests
+- HTTPS-only session cookies with Secure, HttpOnly, and SameSite=Strict attributes
 - Input validation and sanitization
 - SQL injection prevention through parameterized queries
 - Email credentials stored in environment variables (never committed)
@@ -360,21 +356,17 @@ The email service supports:
 
 ### Cookie Security Behavior
 
-The application automatically detects whether requests come via HTTPS and sets the `Secure` cookie flag accordingly:
+Session cookies always use the `Secure`, `HttpOnly`, and `SameSite=Strict`
+attributes. Login and edit mode therefore require an HTTPS connection between
+the browser and the public application URL.
 
-- ✅ **Direct HTTPS**: Secure cookies enabled
-- ✅ **Behind reverse proxy** (Cloudflare Tunnel, nginx, Caddy): Detects `X-Forwarded-Proto: https` header
-- ✅ **Local HTTP access**: Secure cookies disabled (allows LAN access)
-- ✅ **Mixed environment**: Each request is evaluated independently
+This works with Cloudflare Tunnel and other HTTPS reverse proxies even when the
+proxy connects to the container over HTTP: the browser sees HTTPS and applies
+the cookie security policy there.
 
-**No configuration needed** for typical deployments! The app works seamlessly for:
-- Local LAN access over HTTP (`http://192.168.1.100:3002`)
-- Internet access via Cloudflare Tunnel (`https://wishlist.yourdomain.com`)
-- Traditional HTTPS reverse proxies (nginx, Caddy, Traefik)
-
-**Override options** (rarely needed):
-- `FORCE_SECURE_COOKIES=true` - Always use secure cookies
-- `ALLOW_INSECURE_COOKIES=true` - Never use secure cookies
+Direct HTTP remains available for the public wishlist, but authenticated edit
+mode requires HTTPS. For local development, modern browsers normally permit
+Secure cookies on `http://localhost`; use an HTTPS proxy for other hostnames.
 
 ## Deployment
 
@@ -412,7 +404,9 @@ This application uses Go's `embed` directive to include all static files (CSS, J
 
 4. **Access the application:**
 
-   The application will be accessible at `http://localhost:3002`
+   The public wishlist will be accessible at `http://localhost:3002`. Expose
+   production deployments through HTTPS, such as a Cloudflare Tunnel, to use
+   login and edit mode.
 
 ### Manual Deployment
 
@@ -508,6 +502,7 @@ sudo systemctl start wishpage
 ### Authentication Problems
 
 - Verify `EDIT_PASSWORD` is set
+- Verify the browser is using the HTTPS application URL
 - Clear browser cookies and try again
 - Check server logs for session-related errors
 

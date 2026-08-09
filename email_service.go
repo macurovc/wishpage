@@ -56,7 +56,7 @@ func newEmailService() *emailService {
 		if p, err := strconv.Atoi(portStr); err == nil {
 			port = p
 		} else {
-			log.Printf("Invalid EMAIL_PORT value '%s', using default 587", portStr)
+			log.Println("Invalid EMAIL_PORT value; using default 587")
 		}
 	}
 	if from == "" {
@@ -74,7 +74,7 @@ func newEmailService() *emailService {
 		skipTLSVerify: false,
 	}
 
-	log.Printf("Email service configured: { host: '%s', port: %d, from: '%s', to: '%s' }", host, port, from, to)
+	log.Printf("Email service configured on SMTP port %d", port)
 
 	// Verify connection on startup
 	if err := service.verify(); err != nil {

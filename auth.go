@@ -15,32 +15,18 @@ import (
 	"wishpage/templates"
 )
 
-// shouldUseSecureCookies determines if cookies should have the Secure flag
-// based on whether the request came via HTTPS (directly or through a proxy).
-func shouldUseSecureCookies(r *http.Request) bool {
-	// Allow forcing secure cookies for testing/special cases
-	if os.Getenv("FORCE_SECURE_COOKIES") == "true" {
-		return true
-	}
+const sessionCookieName = "session_token"
 
-	// Allow forcing insecure cookies for local development
-	if os.Getenv("ALLOW_INSECURE_COOKIES") == "true" {
-		return false
-	}
-
-	// Check if request came via HTTPS through a reverse proxy (Cloudflare Tunnel, nginx, etc.)
-	// Most proxies set X-Forwarded-Proto to indicate the original protocol
-	if proto := r.Header.Get("X-Forwarded-Proto"); proto == "https" {
-		return true
-	}
-
-	// Check if direct HTTPS connection
-	if r.TLS != nil {
-		return true
-	}
-
-	// Default to false for direct HTTP connections (local LAN access)
-	return false
+func setSessionCookie(w http.ResponseWriter, value string, maxAge int) {
+	http.SetCookie(w, &http.Cookie{
+		Name:     sessionCookieName,
+		Value:    value,
+		HttpOnly: true,
+		Secure:   true,
+		SameSite: http.SameSiteStrictMode,
+		MaxAge:   maxAge,
+		Path:     "/",
+	})
 }
 
 // Session management.
@@ -101,7 +87,7 @@ func generateToken() (string, error) {
 func (s *server) requireAuth(next http.HandlerFunc) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		// Get session cookie
-		cookie, err := r.Cookie("session_token")
+		cookie, err := r.Cookie(sessionCookieName)
 		if err != nil || !s.sessions.isValid(cookie.Value) {
 			// For page requests, redirect to login
 			// For API requests, return error
@@ -127,7 +113,7 @@ func (s *server) handleLoginPage(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// If already authenticated, redirect to edit page
-	cookie, err := r.Cookie("session_token")
+	cookie, err := r.Cookie(sessionCookieName)
 	if err == nil && s.sessions.isValid(cookie.Value) {
 		http.Redirect(w, r, "/edit", http.StatusSeeOther)
 		return
@@ -188,16 +174,7 @@ func (s *server) handleLogin(w http.ResponseWriter, r *http.Request) {
 	// Store session with 24 hour expiry
 	s.sessions.create(token, time.Now().Add(24*time.Hour))
 
-	// Set HTTP-only cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    token,
-		HttpOnly: true,
-		Secure:   shouldUseSecureCookies(r),
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   86400, // 24 hours
-		Path:     "/",
-	})
+	setSessionCookie(w, token, 86400)
 
 	// Redirect to edit page
 	http.Redirect(w, r, "/edit", http.StatusSeeOther)
@@ -213,20 +190,11 @@ func (s *server) handleLogout(w http.ResponseWriter, r *http.Request) {
 	}
 
 	// Get and delete session token
-	if cookie, err := r.Cookie("session_token"); err == nil {
+	if cookie, err := r.Cookie(sessionCookieName); err == nil {
 		s.sessions.delete(cookie.Value)
 	}
 
-	// Clear the cookie
-	http.SetCookie(w, &http.Cookie{
-		Name:     "session_token",
-		Value:    "",
-		HttpOnly: true,
-		Secure:   shouldUseSecureCookies(r),
-		SameSite: http.SameSiteStrictMode,
-		MaxAge:   -1, // Delete cookie
-		Path:     "/",
-	})
+	setSessionCookie(w, "", -1)
 
 	// Redirect to home page
 	http.Redirect(w, r, "/", http.StatusSeeOther)
