@@ -8,7 +8,7 @@ A simple wishlist management application built with Go, HTMX, and SQLite. Featur
 - 👥 Add and organize family members with collapsible sections
 - ✅ Mark items as reserved/available with pure CSS dropdown (no extra HTTP requests)
 - 🔐 Password-protected editing mode
-- 📧 Email notifications for all changes
+- 📧 Email notifications for additions, reservation changes, and deletions
 - 🎨 Clean, responsive UI with fresh mint color scheme
 - ⚡ HTMX for dynamic updates with minimal page reloads
 - 🔒 Session-based authentication
@@ -27,7 +27,7 @@ A simple wishlist management application built with Go, HTMX, and SQLite. Featur
 
 1. Clone the repository:
 ```bash
-git clone <repository-url>
+git clone https://github.com/macurovc/wishpage.git
 cd wishpage
 ```
 
@@ -78,7 +78,7 @@ go run .
 
 ### Email Notifications
 
-The application sends automatic email notifications for all wishlist changes:
+The application sends automatic email notifications for these wishlist changes:
 - Items added, reserved, or deleted
 - Family members added or deleted
 
@@ -182,7 +182,7 @@ make npm-install    # Install npm dependencies for CSS tools
 **Recommended workflow:**
 - Run `make validate` before committing changes
 - This ensures code is formatted (Go and CSS), passes linting, and all tests pass
-- The Go linter checks 33 different rules for code quality, security, and style
+- The Go linter runs configured checks for code quality, security, and style
 - The CSS linter enforces best practices and prevents common mistakes
 
 **CI/CD Pipeline:**
@@ -248,7 +248,7 @@ wishpage/
 │       ├── htmx.min.js     # Vendored HTMX runtime
 │       └── htmx.LICENSE.txt
 ├── Makefile                 # Development commands (validate, test, lint, fmt)
-├── .golangci.yml            # Go linter configuration (33 enabled checks)
+├── .golangci.yml            # Go linter configuration
 ├── .stylelintrc.json        # CSS linter configuration (Stylelint)
 ├── .prettierrc.json         # CSS formatter configuration (Prettier)
 ├── package.json             # Node.js dependencies for CSS tooling
@@ -270,11 +270,13 @@ wishpage/
 - `PUT /api/items/{id}/reserve` - Mark item as reserved, returns updated item card HTML for HTMX
 - `GET /api/family_members` - Get all family members
 
-### Protected Endpoints (Require Authentication)
-
 **Authentication:**
 - `POST /api/login` - Login with password, returns session cookie
 - `POST /api/logout` - Logout and clear session
+
+These authentication endpoints do not require an existing session.
+
+### Protected Endpoints (Require Authentication)
 
 **Page Routes:**
 - `GET /edit` - Edit mode page (full list of items and family members)
@@ -294,7 +296,8 @@ wishpage/
 
 ### HTMX Integration
 
-The application uses HTMX for dynamic updates without full page reloads:
+The application bundles HTMX 1.9.10 into the executable for dynamic updates
+without full page reloads:
 - Item reservation uses pure CSS `<details>` dropdown for confirmation (no HTTP request until confirmed)
 - Reservation confirmation updates just the single item card in-place
 - Adding/deleting items updates the list dynamically
@@ -332,7 +335,8 @@ to it.
 
 ### Email Notifications
 
-When configured, the application sends HTML-formatted email notifications for all changes:
+When configured, the application sends HTML-formatted email notifications for
+additions, reservation changes, and deletions:
 - **Items**: added, reserved/unreserved, deleted (includes name, family member, price, link)
 - **Family Members**: added or deleted
 
@@ -348,8 +352,7 @@ The email service supports:
 - Session-based authentication with automatic expiration (24 hours)
 - **Smart cookie security** - automatically detects HTTPS and sets Secure flag accordingly
 - HttpOnly cookies prevent XSS attacks on session tokens
-- SameSite=Strict cookies prevent CSRF attacks
-- CSRF protection through session validation
+- SameSite=Strict cookies mitigate cross-site request forgery by withholding the session cookie from cross-site requests
 - Input validation and sanitization
 - SQL injection prevention through parameterized queries
 - Email credentials stored in environment variables (never committed)
@@ -498,7 +501,7 @@ sudo systemctl start wishpage
 
 - Verify all required variables are set: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_TO`
 - Check server logs for detailed error messages
-- Look for "Email service configured correctly" message on startup
+- Look for "Email service is configured correctly and ready to send messages." on startup
 - Test with a simple action (add an item) and check spam folder
 - Ensure firewall allows outbound SMTP connections
 
