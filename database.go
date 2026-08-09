@@ -4,39 +4,66 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"log"
 	"os"
 	"path/filepath"
+	"strings"
 
 	_ "github.com/mattn/go-sqlite3"
 )
 
-func initDB() (*sql.DB, error) {
-	dbFilename := os.Getenv("DATABASE_PATH")
-	if dbFilename == "" {
-		dbFilename = filepath.Join(os.TempDir(), "wishlist.db")
+const defaultDatabaseFilename = "wishlist.db"
+
+func resolveDatabasePath() string {
+	if configuredPath := os.Getenv("DATABASE_PATH"); configuredPath != "" {
+		return configuredPath
 	}
 
-	db, err := sql.Open("sqlite3", dbFilename)
+	// Keep new databases in the working directory so they survive OS temp cleanup.
+	if _, err := os.Stat(defaultDatabaseFilename); err == nil || !os.IsNotExist(err) {
+		return defaultDatabaseFilename
+	}
+
+	// Preserve installations that previously used the temporary-directory default.
+	legacyPath := filepath.Join(os.TempDir(), defaultDatabaseFilename)
+	if _, err := os.Stat(legacyPath); err == nil {
+		log.Printf("Using legacy database at %s; set DATABASE_PATH or move it to %s", legacyPath, defaultDatabaseFilename)
+		return legacyPath
+	}
+
+	return defaultDatabaseFilename
+}
+
+func sqliteDSN(filename string) string {
+	separator := "?"
+	if strings.Contains(filename, "?") {
+		separator = "&"
+	}
+	return filename + separator + "_foreign_keys=on&_busy_timeout=5000"
+}
+
+func initDB() (*sql.DB, error) {
+	dbFilename := resolveDatabasePath()
+
+	db, err := sql.Open("sqlite3", sqliteDSN(dbFilename))
 	if err != nil {
 		return nil, fmt.Errorf("failed to open database %s: %w", dbFilename, err)
 	}
+	db.SetMaxOpenConns(1)
+
+	initialized := false
+	defer func() {
+		if !initialized {
+			_ = db.Close()
+		}
+	}()
 
 	ctx := context.Background()
 
-	if _, err := db.ExecContext(ctx, "PRAGMA foreign_keys = ON"); err != nil {
-		return nil, fmt.Errorf("failed to enable foreign keys: %w", err)
+	if err := db.PingContext(ctx); err != nil {
+		return nil, fmt.Errorf("failed to connect to database %s: %w", dbFilename, err)
 	}
 
-	// Only reset schema if explicitly requested or using in-memory DB
-	reset := os.Getenv("RESET_DB") == "1" || dbFilename == ":memory:"
-	if reset {
-		if _, err := db.ExecContext(ctx, `DROP TABLE IF EXISTS items;`); err != nil {
-			return nil, fmt.Errorf("failed to drop items table: %w", err)
-		}
-		if _, err := db.ExecContext(ctx, `DROP TABLE IF EXISTS family_members;`); err != nil {
-			return nil, fmt.Errorf("failed to drop family_members table: %w", err)
-		}
-	}
 	if _, err := db.ExecContext(ctx, `
         CREATE TABLE IF NOT EXISTS family_members (
             id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -59,5 +86,6 @@ func initDB() (*sql.DB, error) {
 		return nil, fmt.Errorf("failed to create items table: %w", err)
 	}
 
+	initialized = true
 	return db, nil
 }

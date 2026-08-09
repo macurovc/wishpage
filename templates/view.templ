@@ -83,7 +83,7 @@ templ ItemCardView(item models.Item, familyMembers []models.FamilyMember) {
                 }
                 
                 if item.Link != nil && *item.Link != "" {
-                    <a href={ templ.SafeURL(*item.Link) } class="card-link mb-3 d-inline-flex" target="_blank">
+                    <a href={ templ.URL(*item.Link) } class="card-link mb-3 d-inline-flex" target="_blank" rel="noopener noreferrer">
                         🔗
                         View Item
                     </a>

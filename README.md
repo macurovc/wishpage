@@ -65,9 +65,8 @@ go run .
 | Variable | Description | Default |
 |----------|-------------|---------|
 | `PORT` | Server port | `3002` |
-| `DATABASE_PATH` | Path to SQLite database | System temp directory (`/tmp/wishlist.db` on Unix-like systems) |
+| `DATABASE_PATH` | Path to SQLite database | `./wishlist.db` (an existing legacy temp database is detected automatically) |
 | `EDIT_PASSWORD` | Password for edit mode | _(required for editing)_ |
-| `RESET_DB` | Reset database on startup (use with caution!) | `0` |
 | `FORCE_SECURE_COOKIES` | Always use secure cookies (for testing) | Auto-detected based on request protocol |
 | `ALLOW_INSECURE_COOKIES` | Always use insecure cookies (for local dev) | Auto-detected based on request protocol |
 | `EMAIL_HOST` | SMTP server hostname | `smtp.gmail.com` |
@@ -311,10 +310,22 @@ The application uses HTMX for dynamic updates without full page reloads:
 ### Database
 
 - SQLite for simplicity and portability
-- Foreign key constraints for data integrity
+- Foreign key constraints enabled on every connection
 - Cascade deletes for family members (deleting a member removes all their items)
 - Automatic schema creation on first run
 - Items automatically ordered by price (items without price shown first)
+
+#### Backups
+
+All application data lives in one SQLite file. Back it up periodically with
+SQLite's online backup command or a snapshot of the persistent volume:
+
+```bash
+sqlite3 /path/to/wishlist.db ".backup '/path/to/wishlist-backup.db'"
+```
+
+Avoid copying the live database file directly while the service may be writing
+to it.
 
 ### Email Notifications
 
@@ -474,11 +485,11 @@ sudo systemctl start wishpage
 
 ### Database Issues
 
-- **Default location**: If `DATABASE_PATH` is not set, the database is created in your system's temp directory (e.g., `/tmp/wishlist.db` on Unix-like systems)
+- **Default location**: If `DATABASE_PATH` is not set, the database is created as `./wishlist.db` in the working directory
+- **Legacy location**: If no local database exists but the previous temp-directory database does, the application continues using it and logs a migration notice
 - Ensure the database file path is writable
 - Check file permissions (the application needs read/write access)
 - Verify a C compiler toolchain is installed so the go-sqlite3 driver can build
-- If you need to reset the database, set `RESET_DB=1` environment variable (⚠️ this will delete all data!)
 
 ### Email Not Working
 

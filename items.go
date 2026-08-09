@@ -3,14 +3,19 @@ package main
 import (
 	"context"
 	"database/sql"
+	"errors"
 	"fmt"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
+
 	"wishpage/models"
 	"wishpage/templates"
 )
+
+var errInvalidItemLink = errors.New("link must be a valid HTTP or HTTPS URL")
 
 func (s *server) handleItems(w http.ResponseWriter, r *http.Request) {
 	switch r.Method {
@@ -267,6 +272,10 @@ func (s *server) validateCreateItemData(r *http.Request, data *requestBodyData) 
 	if err != nil {
 		return nil, err
 	}
+	link, err := validateItemLink(data.Link)
+	if err != nil {
+		return nil, err
+	}
 
 	exists, err := s.itemNameExists(r.Context(), name, familyMemberID, 0)
 	if err != nil {
@@ -282,7 +291,7 @@ func (s *server) validateCreateItemData(r *http.Request, data *requestBodyData) 
 		FamilyMemberIDStr: familyMemberIDStr,
 		Price:             price,
 		PriceValid:        data.Price != "",
-		Link:              strings.TrimSpace(data.Link),
+		Link:              link,
 	}, nil
 }
 
@@ -366,6 +375,24 @@ func parsePrice(priceStr string) (float64, error) {
 	return priceVal, nil
 }
 
+func validateItemLink(rawLink string) (string, error) {
+	link := strings.TrimSpace(rawLink)
+	if link == "" {
+		return "", nil
+	}
+
+	parsed, err := url.Parse(link)
+	if err != nil {
+		return "", errInvalidItemLink
+	}
+	isHTTP := strings.EqualFold(parsed.Scheme, "http") || strings.EqualFold(parsed.Scheme, "https")
+	if parsed.Host == "" || !isHTTP {
+		return "", errInvalidItemLink
+	}
+
+	return link, nil
+}
+
 // toNullString converts a string to sql.NullString, with NULL for empty strings.
 func toNullString(s string) sql.NullString {
 	return sql.NullString{
@@ -416,6 +443,12 @@ func (s *server) updateItem(w http.ResponseWriter, r *http.Request) {
 		s.renderError(w, r, http.StatusBadRequest, "Invalid request body")
 		return
 	}
+	link, err := validateItemLink(data.Link)
+	if err != nil {
+		s.renderError(w, r, http.StatusBadRequest, err.Error())
+		return
+	}
+	data.Link = link
 
 	if err := s.validateItemNameUpdate(r.Context(), id, data); err != nil {
 		s.renderError(w, r, http.StatusBadRequest, err.Error())
@@ -494,10 +527,10 @@ func buildUpdateQuery(data *requestBodyData) (setParts []string, args []any, err
 		args = append(args, data.Name)
 	}
 
-	if strings.TrimSpace(data.Link) != "" {
+	if data.Link != "" {
 		setParts = append(setParts, "link = ?")
 		args = append(args, data.Link)
-	} else if data.Link == "" {
+	} else {
 		setParts = append(setParts, "link = NULL")
 	}
 
