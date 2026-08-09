@@ -7,6 +7,7 @@
     "selector-max-id": 0,
     "alpha-value-notation": "percentage",
     "color-function-notation": "legacy",
+    "color-function-alias-notation": "with-alpha",
     "selector-class-pattern": null,
     "custom-property-pattern": null,
     "no-descending-specificity": null,

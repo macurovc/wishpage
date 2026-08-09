@@ -1,5 +1,5 @@
 # --- Build Stage ---
-FROM golang:1.25-alpine AS builder
+FROM golang:1.26.5-alpine AS builder
 
 # Install build dependencies
 # gcc and musl-dev are required for CGO_ENABLED=1 (SQLite)
@@ -24,8 +24,8 @@ RUN CGO_ENABLED=1 go build -ldflags="-w -s" -o wishpage .
 # --- Runtime Stage ---
 FROM alpine:latest
 
-# Install runtime dependencies (SQLite)
-RUN apk add --no-cache ca-certificates sqlite-libs
+# Install runtime TLS certificates. SQLite is compiled into the application binary.
+RUN apk add --no-cache ca-certificates
 
 WORKDIR /app
 

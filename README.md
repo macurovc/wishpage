@@ -18,9 +18,9 @@ A simple wishlist management application built with Go, HTMX, and SQLite. Featur
 
 ### Prerequisites
 
-- Go 1.25 or higher
-- SQLite3 (required for building - the `go-sqlite3` driver uses CGO)
-- Node.js and npm (for CSS linting, optional - see Development Tools section)
+- Go 1.26 or higher
+- A C compiler toolchain (required because the `go-sqlite3` driver uses CGO)
+- Node.js 20.19 or higher and npm (for CSS linting and formatting, optional - see Development Tools section)
 - `golangci-lint` (optional, for development - see Development Tools section)
 
 ### Installation
@@ -175,7 +175,7 @@ make npm-install    # Install npm dependencies for CSS tools
 - See [installation guide](https://golangci-lint.run/usage/install/) for other platforms
 
 **CSS Tools:**
-- Node.js and npm are required for CSS linting and formatting
+- Node.js 20.19 or higher and npm are required for CSS linting and formatting
 - Install from [nodejs.org](https://nodejs.org/) or via package manager
 - Run `npm install` or `make npm-install` to install Stylelint and Prettier
 - The CI pipeline automatically checks CSS formatting and linting
@@ -213,8 +213,8 @@ go test -v -race -coverprofile=coverage.out ./...
 This project uses [templ](https://templ.guide/) for type-safe HTML templates. After modifying `.templ` files, regenerate the Go code:
 
 ```bash
-# Install templ (if not already installed)
-go install github.com/a-h/templ/cmd/templ@latest
+# Install or update to the templ version pinned by go.mod
+go install "github.com/a-h/templ/cmd/templ@$(go list -m -f '{{.Version}}' github.com/a-h/templ)"
 
 # Generate template code
 templ generate
@@ -477,7 +477,7 @@ sudo systemctl start wishpage
 - **Default location**: If `DATABASE_PATH` is not set, the database is created in your system's temp directory (e.g., `/tmp/wishlist.db` on Unix-like systems)
 - Ensure the database file path is writable
 - Check file permissions (the application needs read/write access)
-- Verify SQLite3 is installed (required for the go-sqlite3 driver)
+- Verify a C compiler toolchain is installed so the go-sqlite3 driver can build
 - If you need to reset the database, set `RESET_DB=1` environment variable (⚠️ this will delete all data!)
 
 ### Email Not Working
@@ -511,4 +511,3 @@ The `make validate` command will automatically:
 ## License
 
 See the LICENSE file in the root of the repository.
-
