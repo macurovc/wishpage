@@ -1,5 +1,5 @@
 # --- Build Stage ---
-FROM golang:1.26.5-alpine AS builder
+FROM golang:1.27.0-alpine AS builder
 
 # Install build dependencies
 # gcc and musl-dev are required for CGO_ENABLED=1 (SQLite)
