@@ -1,57 +1,15 @@
-# General OS generated files
-.DS_Store
-.DS_Store?
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-Thumbs.db
-
-# Go specific
-*.exe
-*.exe~
-*.dll
-*.so
-*.dylib
-*.test
-*.out
-/wishpage
-*.db
-
-# IDE and editor specific files
-.idea
-.vscode
-*.suo
-*.ntvs*
-*.njsproj
-*.sln
-*.swp
-
-# Temporary files
-*~
-\#*#
-*.log
-
-# macOS files
-._*
-.AppleDouble
-.LSOverride
-
-# Windows files
-Thumbs.db
-ehthumbs.db
-Desktop.ini
-$RECYCLE.BIN/
-.aider*
-
-# Environment files
-.env
-
-# Node.js and npm
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-yarn.lock
-.npm
-.pnpm-debug.log*
+.wrangler/
+.dev.vars
+backups/
+seed.sql
+*.log
+.DS_Store
+
+# Real deployment config (has the account's D1 id); see wrangler.jsonc.example
+wrangler.jsonc
+
+# Local artifacts from the old Go app (kept only for the one-time import)
+wishlist.db
+coverage.out
+/wishpage

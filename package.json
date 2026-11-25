@@ -2,20 +2,30 @@
   "name": "wishpage",
   "version": "1.0.0",
   "private": true,
-  "description": "Family Wishlist Application",
+  "type": "module",
+  "license": "GPL-3.0-only",
+  "description": "A minimal family wishlist on Cloudflare Workers + D1",
   "engines": {
-    "node": ">=20.19.0"
+    "node": ">=20"
   },
   "scripts": {
-    "lint:css": "stylelint 'static/css/**/*.css'",
-    "lint:css:fix": "stylelint 'static/css/**/*.css' --fix",
-    "format:css": "prettier --write 'static/css/**/*.css'",
-    "format:css:check": "prettier --check 'static/css/**/*.css'"
+    "dev": "wrangler dev",
+    "deploy": "./scripts/check-deploy.sh && wrangler deploy",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit",
+    "types": "wrangler types --no-include-runtime --no-include-main-module",
+    "release": "npm test && npm run deploy",
+    "db:local": "wrangler d1 migrations apply wishpage --local",
+    "db:remote": "wrangler d1 migrations apply wishpage --remote"
+  },
+  "dependencies": {
+    "hono": "^4.13.20"
   },
   "devDependencies": {
-    "prettier": "3.9.9",
-    "stylelint": "17.15.0",
-    "stylelint-config-standard": "40.0.0"
+    "@cloudflare/vitest-plugin": "^1.9.0",
+    "@cloudflare/workers-types": "^5.20261122.2",
+    "typescript": "^7.0.2",
+    "vitest": "^5.1.1",
+    "wrangler": "^4.166.0"
   }
 }
-

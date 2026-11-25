@@ -1,0 +1,1118 @@
+/* Wishpage — Paper & Ink. Pico base, then the product's own visual system. */
+
+@font-face {
+  font-family: "Fraunces";
+  font-style: normal;
+  font-weight: 400 600;
+  font-display: swap;
+  src: url("/fraunces.woff2") format("woff2");
+}
+
+/* ------------------------------------------------------------------ palette */
+
+:root:not([data-theme="dark"]) {
+  --wp-paper: #f4f0e6;
+  --wp-surface: #fffdf7;
+  --wp-surface-2: #e9e3d5;
+  --wp-ink: #15130f;
+  --wp-muted: #6f675b;
+  --wp-rule: #d8d0c0;
+  --wp-accent: #d9482b;
+  --wp-berry: #ab4545;
+  --wp-berry-soft: #fbe6e1;
+  --wp-highlight: #f2c94c;
+  --wp-button-bg: #15130f;
+  --wp-button-ink: #f4f0e6;
+  --wp-button-hover: #000;
+  --pico-background-color: var(--wp-paper);
+  --pico-color: var(--wp-ink);
+  --pico-muted-color: var(--wp-muted);
+  --pico-muted-border-color: var(--wp-rule);
+  --pico-card-background-color: var(--wp-surface);
+  --pico-card-border-color: var(--wp-rule);
+  --pico-card-sectioning-background-color: var(--wp-surface-2);
+  --pico-h1-color: var(--wp-ink);
+  --pico-h2-color: var(--wp-ink);
+  --pico-h3-color: var(--wp-ink);
+  --pico-primary: var(--wp-accent);
+  --pico-primary-background: var(--wp-button-bg);
+  --pico-primary-border: var(--wp-button-bg);
+  --pico-primary-underline: color-mix(
+    in srgb,
+    var(--wp-accent) 45%,
+    transparent
+  );
+  --pico-primary-hover: var(--wp-accent);
+  --pico-primary-hover-background: var(--wp-button-hover);
+  --pico-primary-hover-border: var(--wp-button-hover);
+  --pico-primary-hover-underline: var(--wp-accent);
+  --pico-primary-focus: color-mix(in srgb, var(--wp-accent) 25%, transparent);
+  --pico-primary-inverse: var(--wp-button-ink);
+  --pico-form-element-background-color: var(--wp-surface);
+  --pico-form-element-border-color: var(--wp-rule);
+  --pico-form-element-color: var(--wp-ink);
+  --pico-form-element-placeholder-color: var(--wp-muted);
+  --pico-form-element-active-border-color: var(--wp-accent);
+  --pico-form-element-focus-color: color-mix(
+    in srgb,
+    var(--wp-accent) 25%,
+    transparent
+  );
+  --pico-modal-overlay-background-color: rgba(21, 19, 15, 0.55);
+  --pico-modal-overlay-backdrop-filter: none;
+  --pico-border-radius: 3px;
+}
+
+@media only screen and (prefers-color-scheme: dark) {
+  :root:not([data-theme]) {
+    --wp-paper: #171310;
+    --wp-surface: #1f1b16;
+    --wp-surface-2: #2a241d;
+    --wp-ink: #f2ece1;
+    --wp-muted: #a69b8c;
+    --wp-rule: #3a342c;
+    --wp-accent: #ff6b4a;
+    --wp-berry: #f08a86;
+    --wp-berry-soft: #46282a;
+    --wp-highlight: #f2c94c;
+    --wp-button-bg: #f2ece1;
+    --wp-button-ink: #171310;
+    --wp-button-hover: #fff8ec;
+    --pico-background-color: var(--wp-paper);
+    --pico-color: var(--wp-ink);
+    --pico-muted-color: var(--wp-muted);
+    --pico-muted-border-color: var(--wp-rule);
+    --pico-card-background-color: var(--wp-surface);
+    --pico-card-border-color: var(--wp-rule);
+    --pico-card-sectioning-background-color: var(--wp-surface-2);
+    --pico-h1-color: var(--wp-ink);
+    --pico-h2-color: var(--wp-ink);
+    --pico-h3-color: var(--wp-ink);
+    --pico-primary: var(--wp-accent);
+    --pico-primary-background: var(--wp-button-bg);
+    --pico-primary-border: var(--wp-button-bg);
+    --pico-primary-underline: color-mix(
+      in srgb,
+      var(--wp-accent) 45%,
+      transparent
+    );
+    --pico-primary-hover: var(--wp-accent);
+    --pico-primary-hover-background: var(--wp-button-hover);
+    --pico-primary-hover-border: var(--wp-button-hover);
+    --pico-primary-hover-underline: var(--wp-accent);
+    --pico-primary-focus: color-mix(in srgb, var(--wp-accent) 25%, transparent);
+    --pico-primary-inverse: var(--wp-button-ink);
+    --pico-form-element-background-color: var(--wp-surface);
+    --pico-form-element-border-color: var(--wp-rule);
+    --pico-form-element-color: var(--wp-ink);
+    --pico-form-element-placeholder-color: var(--wp-muted);
+    --pico-form-element-active-border-color: var(--wp-accent);
+    --pico-form-element-focus-color: color-mix(
+      in srgb,
+      var(--wp-accent) 25%,
+      transparent
+    );
+    --pico-modal-overlay-background-color: rgba(0, 0, 0, 0.65);
+    --pico-modal-overlay-backdrop-filter: none;
+    --pico-border-radius: 3px;
+  }
+}
+
+/* -------------------------------------------------------------------- base */
+
+:root {
+  --wp-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino,
+    Georgia, serif;
+  --wp-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    "Helvetica Neue", Arial, sans-serif;
+  --wp-top: 2rem;
+  --pico-font-family: var(--wp-sans);
+  --pico-border-radius: 0.75rem;
+}
+
+body {
+  display: flex;
+  min-height: 100dvh;
+  flex-direction: column;
+  font-family: var(--wp-sans);
+}
+
+main.container {
+  width: 100%;
+  flex: 1;
+  padding-top: var(--wp-top);
+  padding-bottom: 4rem;
+}
+
+.icon {
+  flex: 0 0 auto;
+}
+
+/* One button shape; context rules only change width or size. */
+
+.button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 0.35rem;
+  width: auto;
+  margin: 0;
+  padding: 0.45rem 1rem;
+  border: 0;
+  font-family: var(--wp-sans);
+  font-size: 0.82rem;
+  font-weight: 600;
+}
+
+.button-primary {
+  background: var(--pico-primary-background);
+  color: var(--pico-primary-inverse);
+}
+
+.button-primary:hover {
+  background: var(--pico-primary-hover-background);
+}
+
+.button-block {
+  width: 100%;
+}
+
+/* ------------------------------------------------------------------ header */
+
+.app-header {
+  display: flex;
+  justify-content: space-between;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--wp-serif);
+  font-size: 1.9rem;
+  font-weight: 500;
+  line-height: 1.1;
+}
+
+.brand-icon {
+  display: inline-flex;
+}
+
+.edit-link {
+  border-radius: 0.5rem;
+}
+
+/* -------------------------------------------------------------- people rail */
+
+.people {
+  display: flex;
+  justify-content: flex-start;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.people::-webkit-scrollbar {
+  display: none;
+}
+
+.person {
+  margin-bottom: -1px;
+  border-bottom: 2px solid transparent;
+  font-family: var(--wp-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.3;
+  transition:
+    color 140ms ease,
+    border-color 140ms ease;
+}
+
+.person.active {
+  border-color: var(--wp-accent);
+}
+
+.list-title {
+  display: flex;
+  align-items: center;
+  gap: 0.55rem;
+  font-family: var(--wp-serif);
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+/* ------------------------------------------------------------------- items */
+
+.reserved-status {
+  margin: 0;
+  font-family: var(--wp-sans);
+  font-size: 0.88rem;
+  font-weight: 600;
+}
+
+.state-button {
+  width: auto;
+  margin: 0;
+  border: 1px solid var(--wp-ink);
+  background: transparent;
+  font-weight: 600;
+}
+
+.state-button:hover {
+  border-color: var(--wp-ink);
+}
+
+.danger-link {
+  width: auto;
+  margin: 0;
+  padding: 0.4rem 0.25rem;
+  border: 0;
+  background: none;
+  box-shadow: none;
+  font-weight: 500;
+}
+
+/* ------------------------------------------------------------------- forms */
+
+/* Pico decorates every valid field with a green check and border. With a page
+full of inputs that is visual noise, so rely on our inline error state. */
+
+input:not([type="submit"]):not([type="button"]):not([type="reset"]):valid,
+textarea:valid,
+select:valid {
+  --pico-icon-valid: none;
+  --pico-form-element-valid-border-color: var(--pico-form-element-border-color);
+  --pico-form-element-valid-active-border-color: var(
+    --pico-form-element-active-border-color
+  );
+  --pico-form-element-valid-focus-color: var(--pico-form-element-focus-color);
+}
+
+input:not([type="submit"]):not([type="button"]):not([type="reset"]):invalid,
+textarea:invalid,
+select:invalid {
+  --pico-icon-invalid: none;
+  --pico-form-element-invalid-border-color: var(
+    --pico-form-element-border-color
+  );
+  --pico-form-element-invalid-active-border-color: var(
+    --pico-form-element-active-border-color
+  );
+  --pico-form-element-invalid-focus-color: var(--pico-form-element-focus-color);
+}
+
+/* ------------------------------------------------------------------ manage */
+
+.manage-title {
+  margin: 0 0 1rem;
+  font-family: var(--wp-serif);
+  font-weight: 500;
+  line-height: 1.2;
+}
+
+.add-person h2 {
+  color: var(--wp-muted);
+  font-family: var(--wp-sans);
+  font-size: 0.72rem;
+  font-weight: 700;
+}
+
+.add-person input {
+  flex: 1 1 auto;
+  margin: 0;
+  border-radius: 0.5rem;
+}
+
+.add-person .button {
+  flex: 0 0 auto;
+  padding: 0.55rem 1.1rem;
+}
+
+/* ------------------------------------------------------------------ errors */
+
+.form-error {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.45rem;
+  margin: 0.5rem 0 0.75rem;
+  padding: 0.55rem 0.75rem;
+  border-left: 3px solid var(--wp-berry);
+  border-radius: 0.25rem;
+  background: var(--wp-berry-soft);
+  color: var(--wp-berry);
+  font-size: 0.83rem;
+}
+
+.form-error .icon {
+  margin-top: 0.1rem;
+}
+
+input[aria-invalid="true"]:not([type="submit"]):not([type="button"]):not( [type="reset"] ) {
+  border-color: var(--wp-berry);
+}
+
+.flash {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.5rem;
+  margin-bottom: 1rem;
+  padding: 0.7rem 0.9rem;
+  border-radius: 0.5rem;
+  font-size: 0.88rem;
+}
+
+.flash.error {
+  border: 1px solid color-mix(in srgb, var(--wp-berry) 30%, transparent);
+  background: var(--wp-berry-soft);
+  color: var(--wp-berry);
+}
+
+/* ------------------------------------------------------------ empty/login */
+
+.empty {
+  padding: 4rem 1rem;
+  text-align: center;
+}
+
+.empty-art {
+  display: grid;
+  margin: 0 auto 1.1rem;
+  place-items: center;
+}
+
+.empty h1,
+.empty h2 {
+  margin: 0.5rem 0 0.25rem;
+  font-family: var(--wp-serif);
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+.empty p {
+  margin: 0.25rem 0;
+  color: var(--wp-muted);
+}
+
+.empty-list {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  margin: 0;
+  padding: 2.5rem 0;
+  color: var(--wp-muted);
+  font-size: 0.9rem;
+}
+
+.login .subtitle {
+  color: var(--wp-muted);
+}
+
+.login .button {
+  padding: 0.6rem 1.25rem;
+  font-size: 0.9rem;
+}
+
+.login .back {
+  margin-top: 1rem;
+  text-align: center;
+  font-size: 0.88rem;
+}
+
+/* -------------------------------------------------------- reserve dialog */
+
+.reserve-dialog > article {
+  max-width: 23rem;
+}
+
+.reserve-dialog > article > header {
+  margin: 0 0 0.35rem;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.reserve-dialog > article > header h3 {
+  margin: 0;
+  font-family: var(--wp-serif);
+  font-size: 1.15rem;
+  font-weight: 500;
+  line-height: 1.35;
+}
+
+.reserve-dialog > article > p {
+  margin: 0;
+  color: var(--wp-muted);
+  font-size: 0.9rem;
+}
+
+.reserve-dialog > article > footer {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin: 1rem 0 0;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.reserve-dialog > article > footer form {
+  margin: 0;
+}
+
+.dialog-cancel {
+  border: 1px solid var(--wp-ink);
+  background: transparent;
+  color: var(--wp-muted);
+}
+
+.dialog-cancel:hover {
+  border-color: var(--wp-muted);
+  background: transparent;
+  color: var(--wp-ink);
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .reserve-dialog[open] > article {
+    animation: dialog-in 160ms ease-out;
+  }
+  @keyframes dialog-in {
+    from {
+    opacity: 0;
+    transform: translateY(0.5rem) scale(0.98);
+    }
+    to {
+    opacity: 1;
+    transform: none;
+    }
+  }
+}
+
+/* --------------------------------------------------------------- responsive */
+
+@media (max-width: 600px) {
+  :root {
+    --wp-top: 1.25rem;
+  }
+  .brand {
+    font-size: 1.6rem;
+  }
+  .app-header {
+    margin-bottom: 1.25rem;
+  }
+  .people {
+    gap: 1.2rem;
+    margin-bottom: 1.4rem;
+  }
+  .login {
+    margin-top: 4vh;
+    padding: 1.5rem;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+  }
+}
+
+/* ======================================================== product surfaces */
+
+body {
+  background: var(--wp-paper);
+}
+
+.button {
+  border-radius: 3px;
+}
+
+/* Pico sizes every submit button at 100%; keep ours content-sized. */
+
+button.button,
+button.state-button,
+button.danger-link,
+button.button-quiet {
+  width: auto;
+}
+
+button.button-block {
+  width: 100%;
+}
+
+/* Masthead */
+
+.app-header {
+  align-items: flex-end;
+  padding-bottom: 1.1rem;
+  border-bottom: 2px solid var(--wp-ink);
+  margin-bottom: 0;
+}
+
+.app-header form {
+  margin: 0;
+}
+
+.brand {
+  margin: 0;
+  font: 600 3rem/1.02 var(--wp-serif);
+  letter-spacing: -0.03em;
+}
+
+.brand-icon {
+  color: var(--wp-accent);
+}
+
+.edit-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  padding: 0 0 0.3rem;
+  color: var(--wp-muted);
+  font: 600 0.72rem/1 var(--wp-sans);
+  text-decoration: none;
+}
+
+.edit-link:hover {
+  background: none;
+  color: var(--wp-ink);
+}
+
+.done-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  width: auto;
+  margin: 0;
+  padding: 0 0 0.3rem;
+  border: 0;
+  background: none;
+  color: var(--wp-ink);
+  font: 600 0.78rem/1 var(--wp-sans);
+}
+
+.done-link:hover {
+  background: none;
+  color: var(--wp-accent);
+}
+
+/* People tabs */
+
+.people {
+  gap: 0.35rem;
+  margin: 0;
+  padding: 1rem 0 0.8rem;
+  border-bottom: 1px solid var(--wp-rule);
+}
+
+.person {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  flex: 0 0 auto;
+  margin: 0;
+  padding: 0.4rem 0.55rem;
+  border: 0;
+  border-radius: 3px;
+  color: var(--wp-muted);
+  font: 600 0.95rem/1.2 var(--wp-sans);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.person:hover {
+  color: var(--wp-ink);
+}
+
+.person.active {
+  border: 0;
+  background: var(--wp-highlight);
+  color: #15130f;
+}
+
+.list-title {
+  margin: 1.5rem 0 0;
+  font: 600 1.8rem/1.1 var(--wp-serif);
+  letter-spacing: -0.02em;
+}
+
+/* Gift list */
+
+.list-head {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 6.5rem 11rem;
+  gap: 1.5rem;
+  padding: 1rem 0 0.5rem;
+  border-bottom: 1px solid var(--wp-rule);
+  color: var(--wp-muted);
+  font: 700 0.62rem/1 var(--wp-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.list-head span:nth-child(3) {
+  text-align: right;
+}
+
+.list-head span:last-child {
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--wp-rule);
+}
+
+.gift-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.gift-row {
+  display: grid;
+  grid-template-columns: 2.5rem minmax(0, 1fr) 6.5rem 11rem;
+  gap: 1.5rem;
+  padding: 1.15rem 0;
+  border-bottom: 1px solid var(--wp-rule);
+  scroll-margin-top: 5rem;
+}
+
+.gift-index {
+  padding-top: 0.2rem;
+  color: var(--wp-muted);
+  font: 600 0.68rem/1 var(--wp-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-main {
+  min-width: 0;
+}
+
+.gift-main h3 {
+  margin: 0;
+  font: 600 1.3rem/1.2 var(--wp-serif);
+  letter-spacing: -0.015em;
+  overflow-wrap: anywhere;
+}
+
+.gift-title-link {
+  color: inherit;
+  text-decoration: none;
+}
+
+.gift-title-link .icon {
+  margin-left: 0.1rem;
+  color: var(--wp-muted);
+  vertical-align: 0.08em;
+}
+
+.gift-title-link:hover {
+  color: var(--wp-accent);
+  text-decoration: underline;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 3px;
+}
+
+.gift-title-link:hover .icon {
+  color: var(--wp-accent);
+}
+
+.gift-row.reserved .gift-title-link .icon {
+  color: var(--wp-muted);
+}
+
+.gift-price {
+  padding-top: 0.2rem;
+  text-align: right;
+  font: 700 0.95rem/1.2 var(--wp-sans);
+  font-variant-numeric: tabular-nums;
+}
+
+.gift-price .currency {
+  margin-right: 0.05rem;
+  color: var(--wp-muted);
+  font-weight: 400;
+}
+
+.no-price {
+  color: var(--wp-muted);
+  font-weight: 400;
+}
+
+.gift-action {
+  padding-left: 1.5rem;
+  border-left: 1px solid var(--wp-rule);
+}
+
+.gift-row.reserved .gift-main h3,
+.gift-row.reserved .gift-price,
+.gift-row.reserved .gift-index {
+  color: var(--wp-muted);
+}
+
+.gift-row.reserved .gift-title-link {
+  color: var(--wp-muted);
+}
+
+.reserved-status {
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  gap: 0.4rem;
+  width: auto;
+  min-height: 2.2rem;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: none;
+  color: var(--wp-accent);
+  font: 700 0.68rem/1 var(--wp-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.reserved-status::before {
+  content: "";
+  width: 0.45rem;
+  height: 0.45rem;
+  background: var(--wp-accent);
+}
+
+.claim {
+  min-height: 2.2rem;
+  padding: 0.5rem 0.9rem;
+  border-radius: 3px;
+  background: var(--wp-button-bg);
+  color: var(--wp-button-ink);
+}
+
+.claim:hover {
+  background: var(--wp-button-hover);
+}
+
+/* Flat dialog */
+
+.reserve-dialog > article {
+  border: 1px solid var(--wp-ink);
+  border-radius: 4px;
+  background: var(--wp-surface);
+  box-shadow: none;
+}
+
+.reserve-dialog > article > header h3 {
+  font: 600 1.3rem/1.25 var(--wp-serif);
+  letter-spacing: -0.02em;
+}
+
+/* Empty */
+
+.empty-art {
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 3px;
+  background: var(--wp-accent);
+  color: var(--wp-button-ink);
+}
+
+.empty h1,
+.empty h2 {
+  font: 600 1.8rem/1.1 var(--wp-serif);
+  letter-spacing: -0.02em;
+}
+
+/* Mobile */
+
+@media (max-width: 720px) {
+  .brand {
+    font-size: 2.2rem;
+  }
+  .app-header {
+    flex-wrap: wrap;
+    gap: 0.5rem;
+  }
+  .people {
+    gap: 0.3rem;
+    padding-top: 0.8rem;
+  }
+  .person {
+    font-size: 0.9rem;
+  }
+  .list-head {
+    display: none;
+  }
+  .gift-row {
+    grid-template-columns: 2rem minmax(0, 1fr);
+    align-items: start;
+    row-gap: 0.55rem;
+    padding: 1rem 0;
+  }
+  .gift-index {
+    grid-column: 1;
+    grid-row: 1;
+  }
+  .gift-main {
+    grid-column: 2;
+    grid-row: 1;
+  }
+  .gift-price {
+    grid-column: 2;
+    padding: 0;
+    text-align: left;
+  }
+  .gift-price.unpriced {
+    display: none;
+  }
+  .gift-action {
+    grid-column: 2;
+    align-self: auto;
+    padding-left: 0;
+    border-left: 0;
+  }
+  .gift-action .button,
+  .claim {
+    width: 100%;
+  }
+  .list-title {
+    font-size: 1.5rem;
+  }
+}
+
+/* ------------------------------------------------------------ refinement */
+
+main.container {
+  max-width: 1000px;
+}
+
+.edit-link,
+.claim,
+.state-button,
+.danger-link,
+.add-person h2 {
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+.edit-link {
+  font-size: 0.78rem;
+}
+
+.claim {
+  font-size: 0.78rem;
+}
+
+.state-button {
+  font-size: 0.72rem;
+}
+
+.danger-link {
+  color: var(--wp-accent);
+  font-size: 0.75rem;
+}
+
+.danger-link:hover {
+  background: none;
+  color: var(--wp-ink);
+}
+
+.state-button {
+  border-color: var(--wp-ink);
+  border-radius: 3px;
+  color: var(--wp-ink);
+  min-height: 2.2rem;
+  padding: 0.5rem 0.9rem;
+}
+
+.state-button:hover {
+  background: var(--wp-ink);
+  color: var(--wp-paper);
+}
+
+.gift-row {
+  align-items: center;
+}
+
+.gift-price {
+  align-self: center;
+  font-size: 1rem;
+}
+
+.gift-action {
+  display: flex;
+  align-items: center;
+  align-self: stretch;
+}
+
+.gift-row.reserved del {
+  color: var(--wp-muted);
+}
+
+/* Edit page */
+
+.manage {
+  margin-top: 1.5rem;
+}
+
+.manage-title {
+  font-size: 1.8rem;
+}
+
+.edit-content {
+  grid-column: 2 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.edit-head-row {
+  padding: 0.55rem 0;
+  color: var(--wp-muted);
+  font: 700 0.62rem/1 var(--wp-sans);
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}
+
+.edit-head-row .edit-content {
+  gap: 0;
+}
+
+.add-row {
+  padding: 0.9rem 0;
+}
+
+.add-gift-form,
+.edit-form {
+  display: grid;
+  grid-template-columns: 2fr 2fr 1fr 6rem;
+  gap: 0.5rem;
+  align-items: center;
+}
+
+.add-gift-form .button,
+.edit-form .button {
+  width: 100%;
+}
+
+.add-gift-form input,
+.edit-form input,
+.add-person-form input {
+  margin: 0;
+  padding: 0.55rem 0.65rem;
+  border: 1px solid var(--wp-rule);
+  border-radius: 3px;
+  background: var(--wp-surface);
+  color: var(--wp-ink);
+  font-size: 0.9rem;
+}
+
+.add-gift-form .button,
+.add-person-form .button {
+  padding: 0.6rem 1rem;
+  font-size: 0.8rem;
+}
+
+.button-quiet {
+  padding: 0.55rem 0.9rem;
+  border: 1px solid var(--wp-rule);
+  background: transparent;
+  color: var(--wp-ink);
+  font-size: 0.78rem;
+}
+
+.button-quiet:hover {
+  border-color: var(--wp-ink);
+  background: transparent;
+}
+
+.edit-form input {
+  width: 100%;
+}
+
+.edit-actions {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.edit-actions form {
+  margin: 0;
+}
+
+.manage-foot {
+  margin-top: 1.5rem;
+}
+
+.manage-foot form {
+  margin: 0;
+}
+
+.add-person {
+  margin-top: 2.5rem;
+  padding-top: 1.25rem;
+  border-top: 2px solid var(--wp-ink);
+}
+
+.add-person h2 {
+  margin: 0 0 0.6rem;
+}
+
+.add-person-form {
+  display: flex;
+  gap: 0.5rem;
+  max-width: 30rem;
+}
+
+.add-person-form input {
+  flex: 1 1 auto;
+}
+
+/* Login */
+
+.login {
+  max-width: 26rem;
+  margin: 8vh auto 0;
+  padding: 2.5rem;
+  border: 1px solid var(--wp-ink);
+  border-radius: 4px;
+  background: var(--wp-surface);
+  box-shadow: none;
+}
+
+.login .brand {
+  margin: 0 0 0.4rem;
+  font-size: 2.2rem;
+}
+
+.login .subtitle {
+  margin: 0 0 1.25rem;
+}
+
+.login .back a {
+  color: var(--wp-accent);
+}
+
+@media (max-width: 720px) {
+  .edit-head-row {
+    display: none;
+  }
+  .add-gift-form,
+  .edit-form {
+    grid-template-columns: 1fr;
+  }
+  .add-gift-form .button,
+  .edit-form .button,
+  .add-person-form .button {
+    width: 100%;
+  }
+  .add-person-form {
+    flex-direction: column;
+  }
+  .edit-content {
+    grid-column: 2;
+  }
+  .gift-row.edit-row {
+    align-items: start;
+  }
+}

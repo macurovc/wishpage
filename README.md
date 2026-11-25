@@ -1,525 +1,239 @@
 # Wishpage
 
-A simple wishlist management application built with Go, HTMX, and SQLite. Features server-side rendering, minimal JavaScript, collapsible family sections, and a clean responsive UI with a fresh mint color scheme.
+A minimal family wishlist running as a single Cloudflare Worker with D1
+(managed SQLite). Server-rendered HTML, plain forms, one shared edit password,
+and one small progressive-enhancement script for instant person switching, the
+claim dialog, and in-place claiming.
+
+## Stack
+
+| Piece | Choice |
+|---|---|
+| Runtime | Cloudflare Workers |
+| Storage | D1 (SQLite) |
+| Language | TypeScript |
+| Framework | Hono (`hono/html` escapes by default) |
+| Auth | HMAC-signed cookie, one `EDIT_PASSWORD` |
+| CSS | Pico CSS (vendored) + one app stylesheet, Fraunces display face |
+| JS | ~90 lines: person switching, claim dialog, in-place claim |
+| Deploy | `npm run deploy` (config guard, then `wrangler deploy`) |
+
+Runtime dependency: `hono` only. Everything else is development tooling.
 
 ## Features
 
-- 📝 Create and manage wishlist items for family members
-- 👥 Add and organize family members with collapsible sections
-- ✅ Mark items as reserved/available with pure CSS dropdown (no extra HTTP requests)
-- 🔐 Password-protected editing mode
-- 📧 Email notifications for additions, reservation changes, and deletions
-- 🎨 Clean, responsive UI with fresh mint color scheme
-- ⚡ HTMX for dynamic updates with minimal page reloads
-- 🔒 Session-based authentication
-- 📦 Uses templ for type-safe Go templates
+- Public wishlist with a typographic people switcher; every list is rendered
+  once, so switching is instant and requires no request
+- Items with name, optional link, optional price, and a taken state
+- Anyone can claim a gift through a native modal confirmation (no login)
+- Password-protected edit mode: add/delete members, add/edit/delete items,
+  mark as taken/available
+- Same validation as the Go version: required and max-length names, unique
+  member names, unique item name per member, HTTP(S)-only links, non-negative
+  prices
+- Inline SVG icon set instead of platform-dependent emoji, with a matching
+  favicon and a consistent 24px stroke grid
+- Inline validation errors keep what you typed, mark the bad field, and focus it
+- `?open=<member id>` selects the person; edit actions anchor to the affected item
+- Claiming swaps the row in place: the order, the page position, and the rest of
+  the list never move
+- Done sits in the masthead, so leaving edit mode is always one click away
+- Cream/ink palette with one signal red in light and dark, Fraunces display type
 
-## Quick Start
+## Quick start
 
-### Prerequisites
-
-- Go 1.26 or higher
-- A C compiler toolchain (required because the `go-sqlite3` driver uses CGO)
-- Node.js 20.19 or higher and npm (for CSS linting and formatting, optional - see Development Tools section)
-- `golangci-lint` (optional, for development - see Development Tools section)
-
-### Installation
-
-1. Clone the repository:
-```bash
-git clone https://github.com/macurovc/wishpage.git
-cd wishpage
-```
-
-2. Install dependencies:
-```bash
-go mod download
-```
-
-3. Set up environment variables:
-```bash
-# Required for edit mode
-export EDIT_PASSWORD="your-secure-password"
-
-# Optional configuration
-export DATABASE_PATH="/path/to/wishlist.db"
-export PORT="3002"
-
-# Optional: Email notifications (see Email Notifications section)
-export EMAIL_USER="your-email@gmail.com"
-export EMAIL_PASS="your-app-password"
-export EMAIL_TO="recipient@example.com"
-```
-
-4. Run the application:
-```bash
-go run .
-```
-
-5. Open your browser to `http://localhost:3002`
-
-## Configuration
-
-### Environment Variables
-
-| Variable | Description | Default |
-|----------|-------------|---------|
-| `PORT` | Server port | `3002` |
-| `DATABASE_PATH` | Path to SQLite database | `./wishlist.db` (an existing legacy temp database is detected automatically) |
-| `EDIT_PASSWORD` | Password for edit mode | _(required for editing)_ |
-| `EMAIL_HOST` | SMTP server hostname | `smtp.gmail.com` |
-| `EMAIL_PORT` | SMTP server port | `587` |
-| `EMAIL_USER` | SMTP username | _(required for email)_ |
-| `EMAIL_PASS` | SMTP password | _(required for email)_ |
-| `EMAIL_FROM` | Sender email address | Same as `EMAIL_USER` |
-| `EMAIL_TO` | Recipient email address | _(required for email)_ |
-
-### Email Notifications
-
-The application sends automatic email notifications for these wishlist changes:
-- Items added, reserved, or deleted
-- Family members added or deleted
-
-**Important**: Email is completely optional. If not configured, the application works normally without sending notifications.
-
-#### Quick Setup (Gmail)
-
-1. Enable 2-Factor Authentication on your Google account
-2. Generate an App Password at https://myaccount.google.com/apppasswords
-3. Set environment variables:
+Requirements: Node.js 20+ and npm. `sqlite3` is only needed to import an old
+database.
 
 ```bash
-export EMAIL_USER=your-email@gmail.com
-export EMAIL_PASS=your-16-char-app-password
-export EMAIL_TO=recipient@example.com
+cp wrangler.jsonc.example wrangler.jsonc   # placeholder id is fine locally
+npm install
+npm run db:local     # create the local D1 database and apply migrations
+npm run dev          # http://localhost:8787
 ```
 
-#### Other Email Providers
+`wrangler.jsonc` is git-ignored so your account's D1 id stays out of the public
+repo; `wrangler.jsonc.example` is the template. Local D1 state is keyed by that
+id, so if you later replace the placeholder with a real one, run
+`npm run db:local` again and re-import your data.
 
-**Office 365 / Outlook:**
-```bash
-export EMAIL_HOST=smtp.office365.com
-export EMAIL_PORT=587
-export EMAIL_USER=your-email@outlook.com
-export EMAIL_PASS=your-password
-export EMAIL_TO=recipient@example.com
+Local secrets live in `.dev.vars` (not committed):
+
+```
+EDIT_PASSWORD=dev-password
+SESSION_SECRET=dev-secret
 ```
 
-**Custom SMTP Server:**
-```bash
-export EMAIL_HOST=smtp.example.com
-export EMAIL_PORT=587  # or 465 for TLS
-export EMAIL_USER=your-username
-export EMAIL_PASS=your-password
-export EMAIL_TO=recipient@example.com
-```
+## Scripts
 
-#### Email Troubleshooting
+| Command | Purpose |
+|---|---|
+| `npm run dev` | Local server with local D1 |
+| `npm test` | 39 integration tests in the Workers runtime |
+| `npm run typecheck` | `tsc --noEmit` |
+| `npm run db:local` | Apply migrations to local D1 |
+| `npm run db:remote` | Apply migrations to remote D1 |
+| `npm run deploy` | Check config, then deploy the Worker |
+| `npm run release` | Test, then deploy (with the same config check) |
+| `npm run types` | Regenerate env types after changing `wrangler.jsonc` |
 
-**"Email service verification failed"**
-- Check SMTP hostname and port are correct
-- Verify firewall allows outbound SMTP connections
-- Corporate networks may block SMTP ports
-
-**"Authentication failed"**
-- Gmail: Use App Password, not your regular password
-- Verify username and password are correct
-- Check email provider security settings
-
-**Emails not received**
-- Check spam/junk folder
-- Verify `EMAIL_TO` address is correct
-- Check server logs for errors
-- Some providers have rate limits
-
-## Development
-
-### Development Tools
-
-The project includes a Makefile with convenient commands for development:
+## Deploy
 
 ```bash
-# Validate everything (format, lint, test, tidy) - run this before committing!
-make validate
+cp wrangler.jsonc.example wrangler.jsonc
+npx wrangler login
+npx wrangler d1 create wishpage
+# paste the printed database_id into wrangler.jsonc
 
-# Show all available commands
-make help
-
-# Individual Go commands:
-make fmt         # Format all Go code with go fmt
-make lint        # Run golangci-lint with comprehensive checks
-make test        # Run all tests with race detection and coverage
-make tidy        # Clean up go.mod and verify dependencies
-
-# CSS commands:
-make fmt-css        # Format CSS files with Prettier
-make fmt-css-check  # Check CSS formatting without modifying files
-make lint-css       # Run Stylelint on CSS files
-make lint-css-fix   # Run Stylelint and auto-fix CSS issues
-
-# Utility commands:
-make clean          # Remove build artifacts, caches, and node_modules
-make check-deps     # Verify all required tools are installed
-make npm-install    # Install npm dependencies for CSS tools
+npm run db:remote
+npx wrangler secret put EDIT_PASSWORD
+npx wrangler secret put SESSION_SECRET   # openssl rand -base64 32
+npm run deploy
 ```
 
-**Prerequisites for development tools:**
+`npm run deploy` stops early and prints this checklist if `wrangler.jsonc` is
+missing or still has the placeholder `database_id`, so a broken D1 binding
+cannot be deployed by accident.
 
-**Go Tools:**
-- `golangci-lint` is required for `make lint` and `make validate`
-- Install on macOS: `brew install golangci-lint`
-- Install on Linux: `curl -sSfL https://raw.githubusercontent.com/golangci/golangci-lint/master/install.sh | sh -s -- -b $(go env GOPATH)/bin`
-- See [installation guide](https://golangci-lint.run/usage/install/) for other platforms
+Test on the `*.workers.dev` URL first. To use a custom domain, add it to
+`wrangler.jsonc` (the zone must be in the same Cloudflare account):
 
-**CSS Tools:**
-- Node.js 20.19 or higher and npm are required for CSS linting and formatting
-- Install from [nodejs.org](https://nodejs.org/) or via package manager
-- Run `npm install` or `make npm-install` to install Stylelint and Prettier
-- The CI pipeline automatically checks CSS formatting and linting
+```jsonc
+"routes": [{ "pattern": "wishlist.example.com", "custom_domain": true }]
+```
 
-**Recommended workflow:**
-- Run `make validate` before committing changes
-- This ensures code is formatted (Go and CSS), passes linting, and all tests pass
-- The Go linter runs configured checks for code quality, security, and style
-- The CSS linter enforces best practices and prevents common mistakes
+Deployment is just the Worker and its D1 database — no container, volume,
+tunnel, or reverse proxy.
 
-**CI/CD Pipeline:**
-- GitHub Actions automatically runs on all pushes and pull requests
-- Parallel jobs check Go tests, Go linting, CSS formatting, CSS linting, and build
-- All checks must pass before merging
-- Coverage reports are uploaded to Codecov
+## Import the old data
 
-### Running Tests
+`scripts/convert-db.sh` reads the Go app's SQLite file and writes
+`INSERT` statements for the new schema. It preserves IDs and converts
+`price REAL` to `price_cents INTEGER`. It prints counts only.
 
 ```bash
-# Run all tests
-go test ./...
+./scripts/convert-db.sh wishlist.db seed.sql
 
-# Run tests with verbose output
-go test -v ./...
+# local check
+npx wrangler d1 execute wishpage --local --file=seed.sql
 
-# Run specific test
-go test -v -run TestEmailService
-
-# Run tests with coverage (or use 'make test')
-go test -v -race -coverprofile=coverage.out ./...
+# remote import (clear first if re-importing)
+npx wrangler d1 execute wishpage --remote --command \
+  "DELETE FROM items; DELETE FROM members;"
+npx wrangler d1 execute wishpage --remote --file=seed.sql
 ```
 
-### Generating Templates
+Then run `npm run dev` and walk through the site before deploying.
 
-This project uses [templ](https://templ.guide/) for type-safe HTML templates. After modifying `.templ` files, regenerate the Go code:
+## Backups
+
+D1 keeps automatic point-in-time history (7 days on the Free plan, 30 on Paid):
 
 ```bash
-# Install or update to the templ version pinned by go.mod
-go install "github.com/a-h/templ/cmd/templ@$(go list -m -f '{{.Version}}' github.com/a-h/templ)"
-
-# Generate template code
-templ generate
+npx wrangler d1 time-travel info wishpage
 ```
 
-**Note**: The generated `*_templ.go` files are checked into version control. Always regenerate them after editing `.templ` files and include both the `.templ` and `*_templ.go` files in your commits.
-
-## Project Structure
-
-```
-wishpage/
-├── main.go                  # Application entry point and server setup
-├── auth.go                  # Authentication and session management
-├── database.go              # Database initialization
-├── handlers.go              # Main page handlers
-├── items.go                 # Item CRUD operations
-├── family_members.go        # Family member CRUD operations
-├── email_service.go         # Email notification service
-├── helpers.go               # Utility functions
-├── models/
-│   └── models.go           # Data models
-├── templates/
-│   ├── layout.templ        # Base layout template
-│   ├── view.templ          # Public view templates
-│   ├── edit.templ          # Edit mode templates
-│   ├── login.templ         # Login page template
-│   └── error.templ         # Error template
-├── static/
-│   ├── css/
-│   │   └── styles.css      # Application styles
-│   └── js/
-│       ├── htmx.min.js     # Vendored HTMX runtime
-│       └── htmx.LICENSE.txt
-├── Makefile                 # Development commands (validate, test, lint, fmt)
-├── .golangci.yml            # Go linter configuration
-├── .stylelintrc.json        # CSS linter configuration (Stylelint)
-├── .prettierrc.json         # CSS formatter configuration (Prettier)
-├── package.json             # Node.js dependencies for CSS tooling
-├── go.mod                   # Go module dependencies
-└── *_test.go               # Test files
-```
-
-## API Endpoints
-
-### Public Endpoints (No Authentication Required)
-
-**Page Routes:**
-- `GET /` - Landing page with collapsible sections for all family members and their items
-- `GET /login` - Login page
-- `GET /static/*` - Static files (CSS, JS, images)
-
-**API Routes:**
-- `GET /api/items` - Get all items (supports `?family_member_id=X` filter)
-- `PUT /api/items/{id}/reserve` - Mark item as reserved, returns updated item card HTML for HTMX
-- `GET /api/family_members` - Get all family members
-
-**Authentication:**
-- `POST /api/login` - Login with password, returns session cookie
-- `POST /api/logout` - Logout and clear session
-
-These authentication endpoints do not require an existing session.
-
-### Protected Endpoints (Require Authentication)
-
-**Page Routes:**
-- `GET /edit` - Edit mode page (full list of items and family members)
-
-**Item Management:**
-- `POST /api/items` - Create new item (requires name, family_member_id; optional link, price)
-- `PUT /api/items/{id}` - Update item details
-- `DELETE /api/items/{id}` - Delete item
-- `PUT /api/items/{id}/unreserve` - Mark item as unreserved (admin only)
-
-**Family Member Management:**
-- `POST /api/family_members` - Create family member
-- `PUT /api/family_members/{id}` - Update family member name
-- `DELETE /api/family_members/{id}` - Delete family member (cascades to items)
-
-## Features in Detail
-
-### HTMX Integration
-
-The application bundles HTMX 1.9.10 into the executable for dynamic updates
-without full page reloads:
-- Item reservation uses pure CSS `<details>` dropdown for confirmation (no HTTP request until confirmed)
-- Reservation confirmation updates just the single item card in-place
-- Adding/deleting items updates the list dynamically
-- Family member management happens without page navigation
-- Collapsible family sections use native HTML `<details>` elements
-- Smooth transitions and feedback
-
-### Session Management
-
-- Secure session tokens with automatic expiration (24 hours)
-- Cookie-based authentication (HttpOnly, SameSite=Strict)
-- Background cleanup of expired sessions (runs hourly)
-- Concurrent access handling with thread-safe session store
-- Constant-time password comparison to prevent timing attacks
-
-### Database
-
-- SQLite for simplicity and portability
-- Foreign key constraints enabled on every connection
-- Cascade deletes for family members (deleting a member removes all their items)
-- Automatic schema creation on first run
-- Items automatically ordered by price (items without price shown first)
-
-#### Backups
-
-All application data lives in one SQLite file. Back it up periodically with
-SQLite's online backup command or a snapshot of the persistent volume:
+For an offsite copy, export after bulk changes or on a schedule:
 
 ```bash
-sqlite3 /path/to/wishlist.db ".backup '/path/to/wishlist-backup.db'"
+mkdir -p backups
+npx wrangler d1 export wishpage --remote \
+  --output "backups/wishpage-$(date +%F).sql"
 ```
 
-Avoid copying the live database file directly while the service may be writing
-to it.
+## Smoke check
 
-### Email Notifications
-
-When configured, the application sends HTML-formatted email notifications for
-additions, reservation changes, and deletions:
-- **Items**: added, reserved/unreserved, deleted (includes name, family member, price, link)
-- **Family Members**: added or deleted
-
-The email service supports:
-- Both TLS (port 465) and STARTTLS (port 587) connections
-- Gmail, Office 365, and custom SMTP servers
-- Graceful degradation (app continues if email fails)
-- Automatic HTML escaping for security
-
-## Security Considerations
-
-- Password-protected edit mode with constant-time comparison
-- Session-based authentication with automatic expiration (24 hours)
-- HTTPS-only session cookies with Secure, HttpOnly, and SameSite=Strict attributes
-- Input validation and sanitization
-- SQL injection prevention through parameterized queries
-- Email credentials stored in environment variables (never committed)
-- HTML escaping in email notifications prevents injection attacks
-
-### Cookie Security Behavior
-
-Session cookies always use the `Secure`, `HttpOnly`, and `SameSite=Strict`
-attributes. Login and edit mode therefore require an HTTPS connection between
-the browser and the public application URL.
-
-This works with Cloudflare Tunnel and other HTTPS reverse proxies even when the
-proxy connects to the container over HTTP: the browser sees HTTPS and applies
-the cookie security policy there.
-
-Direct HTTP remains available for the public wishlist, but authenticated edit
-mode requires HTTPS. For local development, modern browsers normally permit
-Secure cookies on `http://localhost`; use an HTTPS proxy for other hostnames.
-
-## Deployment
-
-This application uses Go's `embed` directive to include all static files (CSS, JS, images) directly in the binary. This means you only need to deploy a **single executable file** - no separate static directory required!
-
-### Using Docker
-
-1. **Validate the code before building (recommended):**
-
-   ```bash
-   make validate
-   ```
-
-2. **Build the Docker image:**
-
-   ```bash
-   docker build -t wishpage .
-   ```
-
-3. **Run the Docker container:**
-
-   ```bash
-   docker run -d \
-     -p 3002:3002 \
-     -e EDIT_PASSWORD=your_super_secret_password \
-     -e DATABASE_PATH=/data/wishlist.db \
-     -v $(pwd)/data:/data \
-     --name wishpage \
-     wishpage
-   ```
-
-   - The `-e` flag sets environment variables
-   - The `-v` flag mounts a local directory (`./data`) into the container at `/data` for database persistence
-   - Without the volume mount, your data will be lost if the container is removed
-
-4. **Access the application:**
-
-   The public wishlist will be accessible at `http://localhost:3002`. Expose
-   production deployments through HTTPS, such as a Cloudflare Tunnel, to use
-   login and edit mode.
-
-### Manual Deployment
-
-1. **Validate the code before building:**
 ```bash
-make validate
+./scripts/smoke.sh https://wishlist.example.com
 ```
 
-This ensures your code is properly formatted, passes all linter checks, and all tests pass.
+Checks `GET /`, that an unauthenticated admin POST is rejected, and that
+`robots.txt` is served.
 
-2. **Build the application:**
-```bash
-go build -o wishpage
+## Tests
+
+`npm test` runs 39 integration tests against the real Workers runtime with a
+local D1 database. The suite covers rendering, stable ordering, escaping,
+reservations, auth/cookie hardening, validation, CRUD, cascade deletes, and
+redirects. GitHub Actions runs the same typecheck and tests on `main` and pull
+requests.
+
+Static assets are served by the Workers assets layer rather than the Worker
+script, so they are checked locally with `npm run dev` instead of the unit
+suite.
+
+## Layout
+
+```
+src/
+  index.ts     routes, middleware, handlers
+  db.ts        D1 queries and row types
+  views.ts     server-rendered HTML
+  auth.ts      cookie signing, password check
+  validate.ts  name/link/price validation
+  env.d.ts     secret bindings
+migrations/    0001_init.sql
+public/        pico.min.css, app.css, app.js, favicon.svg, robots.txt,
+               fraunces.woff2, fraunces.OFL.txt
+test/          integration tests and migration setup
+scripts/       check-deploy.sh, convert-db.sh, smoke.sh
+.github/       CI workflow (typecheck + tests) and dependabot
+wrangler.jsonc.example  Worker, assets, and D1 binding (copy to wrangler.jsonc)
+worker-configuration.d.ts  generated binding types
+vitest.config.ts  Workers test pool + local D1 migrations
 ```
 
-This creates a single, self-contained binary with all static files embedded.
+## Differences from the Go app
 
-3. **Copy the binary to your server:**
-```bash
-scp wishpage your-server:/opt/wishpage/
-```
+- **No email notifications.** Removed intentionally.
+- **A people rail instead of an accordion.** All lists are sent in the initial
+  HTML. Switching is client-side, updates `?open=<id>` with `pushState`, and
+  supports the back/forward buttons. Without JavaScript the rail links navigate
+  normally, so every list remains reachable.
+- **Form POSTs, not an API.** Every mutation is an HTML form followed by a
+  redirect; the selected person is preserved with `?open=<id>`. Claiming is the
+  one exception: it swaps the returned row in place with `fetch`, so the list,
+  its order, and the scroll position stay put. Without JavaScript the form posts
+  normally and the redirect lands on the item's anchor.
+- **One small client script** (~90 lines) switches people without a request,
+  opens the claim confirmation with the native `<dialog>` element, and applies
+  the claimed row in place. The claim button also uses `commandfor`, so browsers
+  with invoker-command support work even if the script does not load.
+- **Claim and taken share the action column**: the status label occupies the
+  same slot and height as the button, so rows never change height.
+- **Inline validation** keeps what you typed, marks the offending field, and
+  focuses it on the returned page.
+- **Editing is the same list**, not a separate settings screen: one flat row per
+  gift with inline fields, one column header, and Done in the masthead.
+- **Stateless sessions.** Logout clears the cookie in the browser, but a signed
+  token that was already extracted stays valid until its 12-hour expiry.
+- **A full visual redesign.** Pico supplies the reset and form controls; the
+  product adds a cream/ink palette with one signal red, Fraunces display type, a
+  marigold active tab, and a numbered table-like list with no cards or shadows.
+- **No JSON API.** Every mutation is an HTML form POST followed by a redirect.
+- Items are ordered by: unpriced first, then price, then name. Reserving an
+  item does not move it.
 
-4. **Set environment variables on your server:**
-```bash
-export EDIT_PASSWORD="your-secure-password"
-export DATABASE_PATH="/var/lib/wishpage/wishlist.db"
-# Optional: Email configuration
-export EMAIL_USER="your-email@gmail.com"
-export EMAIL_PASS="your-app-password"
-export EMAIL_TO="recipient@example.com"
-```
+## Operational notes
 
-5. **Run the binary:**
-```bash
-./wishpage
-```
+The Free plan is far above this app's needs: 100k Worker requests/day, 10 ms CPU
+per request, D1 at 5M rows read and 100k rows written per day, 5 GB storage.
+Requests for static assets are free and do not invoke the Worker. If a limit is
+hit, requests fail until the daily reset rather than billing.
 
-**That's it!** No need to copy the `static/` directory - it's already in the binary.
+`public/robots.txt` disallows crawling, which keeps the public page out of
+search results and avoids accidental traffic.
 
-**Additional recommendations:**
-- Consider using a process manager like systemd or supervisor (see example below)
-- Put behind a reverse proxy (nginx/Caddy) for HTTPS
+## Optional next steps
 
-### Example systemd Service
-
-Create `/etc/systemd/system/wishpage.service`:
-
-```ini
-[Unit]
-Description=Wishpage Application
-After=network.target
-
-[Service]
-Type=simple
-User=wishpage
-WorkingDirectory=/opt/wishpage
-ExecStart=/opt/wishpage/wishpage
-Environment="EDIT_PASSWORD=your-password"
-Environment="DATABASE_PATH=/var/lib/wishpage/wishlist.db"
-Environment="PORT=3002"
-Restart=always
-RestartSec=5
-
-[Install]
-WantedBy=multi-user.target
-```
-
-Then:
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable wishpage
-sudo systemctl start wishpage
-```
-
-## Troubleshooting
-
-### Database Issues
-
-- **Default location**: If `DATABASE_PATH` is not set, the database is created as `./wishlist.db` in the working directory
-- **Legacy location**: If no local database exists but the previous temp-directory database does, the application continues using it and logs a migration notice
-- Ensure the database file path is writable
-- Check file permissions (the application needs read/write access)
-- Verify a C compiler toolchain is installed so the go-sqlite3 driver can build
-
-### Email Not Working
-
-- Verify all required variables are set: `EMAIL_USER`, `EMAIL_PASS`, `EMAIL_TO`
-- Check server logs for detailed error messages
-- Look for "Email service is configured correctly and ready to send messages." on startup
-- Test with a simple action (add an item) and check spam folder
-- Ensure firewall allows outbound SMTP connections
-
-### Authentication Problems
-
-- Verify `EDIT_PASSWORD` is set
-- Verify the browser is using the HTTPS application URL
-- Clear browser cookies and try again
-- Check server logs for session-related errors
-
-## Contributing
-
-Contributions are welcome! Please ensure:
-- All validation checks pass: `make validate`
-- Templates are regenerated: `templ generate` (if you modified `.templ` files)
-- CSS linting passes if you modify styles: `make lint-css`
-
-The `make validate` command will automatically:
-- Format your Go code with `go fmt`
-- Format your CSS with Prettier
-- Run comprehensive linting checks (Go and CSS)
-- Run all tests with race detection
-- Verify dependencies are clean
+- Put Cloudflare Access in front of `/edit` and `/admin/*` to remove the
+  password, login page, and cookie code entirely.
+- Add a WAF rate-limit rule on `POST /items/:id/reserve` if the public link is
+  ever shared widely.
+- Add a deploy workflow using `wrangler deploy`, gated on the CI job, with
+  `CLOUDFLARE_API_TOKEN`, `EDIT_PASSWORD`, and `SESSION_SECRET` as repository
+  secrets.
 
 ## License
 
-See the LICENSE file in the root of the repository.
+GPL-3.0. See [LICENSE](LICENSE).
