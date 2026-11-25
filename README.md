@@ -14,7 +14,7 @@ claim dialog, and in-place claiming.
 | Language | TypeScript |
 | Framework | Hono (`hono/html` escapes by default) |
 | Auth | HMAC-signed cookie, one `EDIT_PASSWORD` |
-| CSS | Pico CSS (vendored) + one app stylesheet, Fraunces display face |
+| CSS | One hand-written stylesheet (own reset + form controls), Fraunces display face |
 | JS | ~90 lines: person switching, claim dialog, in-place claim |
 | Deploy | `npm run deploy` (config guard, then `wrangler deploy`) |
 
@@ -173,7 +173,7 @@ src/
   validate.ts  name/link/price validation
   env.d.ts     secret bindings
 migrations/    0001_init.sql
-public/        pico.min.css, app.css, app.js, favicon.svg, robots.txt,
+public/        app.css, app.js, favicon.svg, robots.txt,
                fraunces.woff2, fraunces.OFL.txt
 test/          integration tests and migration setup
 scripts/       check-deploy.sh, convert-db.sh, smoke.sh
@@ -207,9 +207,10 @@ vitest.config.ts  Workers test pool + local D1 migrations
   gift with inline fields, one column header, and Done in the masthead.
 - **Stateless sessions.** Logout clears the cookie in the browser, but a signed
   token that was already extracted stays valid until its 12-hour expiry.
-- **A full visual redesign.** Pico supplies the reset and form controls; the
-  product adds a cream/ink palette with one signal red, Fraunces display type, a
-  marigold active tab, and a numbered table-like list with no cards or shadows.
+- **A full visual redesign.** A small hand-written base supplies the reset and
+  form controls; the product adds a cream/ink palette with one signal red,
+  Fraunces display type, a marigold active tab, and a numbered table-like list
+  with no cards or shadows.
 - **No JSON API.** Every mutation is an HTML form POST followed by a redirect.
 - Items are ordered by: unpriced first, then price, then name. Reserving an
   item does not move it.

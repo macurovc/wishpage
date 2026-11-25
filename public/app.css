@@ -1,4 +1,4 @@
-/* Wishpage — Paper & Ink. Pico base, then the product's own visual system. */
+/* Wishpage — Paper & Ink. */
 
 @font-face {
   font-family: "Fraunces";
@@ -13,7 +13,6 @@
 :root:not([data-theme="dark"]) {
   --wp-paper: #f4f0e6;
   --wp-surface: #fffdf7;
-  --wp-surface-2: #e9e3d5;
   --wp-ink: #15130f;
   --wp-muted: #6f675b;
   --wp-rule: #d8d0c0;
@@ -24,50 +23,13 @@
   --wp-button-bg: #15130f;
   --wp-button-ink: #f4f0e6;
   --wp-button-hover: #000;
-  --pico-background-color: var(--wp-paper);
-  --pico-color: var(--wp-ink);
-  --pico-muted-color: var(--wp-muted);
-  --pico-muted-border-color: var(--wp-rule);
-  --pico-card-background-color: var(--wp-surface);
-  --pico-card-border-color: var(--wp-rule);
-  --pico-card-sectioning-background-color: var(--wp-surface-2);
-  --pico-h1-color: var(--wp-ink);
-  --pico-h2-color: var(--wp-ink);
-  --pico-h3-color: var(--wp-ink);
-  --pico-primary: var(--wp-accent);
-  --pico-primary-background: var(--wp-button-bg);
-  --pico-primary-border: var(--wp-button-bg);
-  --pico-primary-underline: color-mix(
-    in srgb,
-    var(--wp-accent) 45%,
-    transparent
-  );
-  --pico-primary-hover: var(--wp-accent);
-  --pico-primary-hover-background: var(--wp-button-hover);
-  --pico-primary-hover-border: var(--wp-button-hover);
-  --pico-primary-hover-underline: var(--wp-accent);
-  --pico-primary-focus: color-mix(in srgb, var(--wp-accent) 25%, transparent);
-  --pico-primary-inverse: var(--wp-button-ink);
-  --pico-form-element-background-color: var(--wp-surface);
-  --pico-form-element-border-color: var(--wp-rule);
-  --pico-form-element-color: var(--wp-ink);
-  --pico-form-element-placeholder-color: var(--wp-muted);
-  --pico-form-element-active-border-color: var(--wp-accent);
-  --pico-form-element-focus-color: color-mix(
-    in srgb,
-    var(--wp-accent) 25%,
-    transparent
-  );
-  --pico-modal-overlay-background-color: rgba(21, 19, 15, 0.55);
-  --pico-modal-overlay-backdrop-filter: none;
-  --pico-border-radius: 3px;
+  --wp-overlay: rgba(21, 19, 15, 0.55);
 }
 
 @media only screen and (prefers-color-scheme: dark) {
   :root:not([data-theme]) {
     --wp-paper: #171310;
     --wp-surface: #1f1b16;
-    --wp-surface-2: #2a241d;
     --wp-ink: #f2ece1;
     --wp-muted: #a69b8c;
     --wp-rule: #3a342c;
@@ -78,47 +40,156 @@
     --wp-button-bg: #f2ece1;
     --wp-button-ink: #171310;
     --wp-button-hover: #fff8ec;
-    --pico-background-color: var(--wp-paper);
-    --pico-color: var(--wp-ink);
-    --pico-muted-color: var(--wp-muted);
-    --pico-muted-border-color: var(--wp-rule);
-    --pico-card-background-color: var(--wp-surface);
-    --pico-card-border-color: var(--wp-rule);
-    --pico-card-sectioning-background-color: var(--wp-surface-2);
-    --pico-h1-color: var(--wp-ink);
-    --pico-h2-color: var(--wp-ink);
-    --pico-h3-color: var(--wp-ink);
-    --pico-primary: var(--wp-accent);
-    --pico-primary-background: var(--wp-button-bg);
-    --pico-primary-border: var(--wp-button-bg);
-    --pico-primary-underline: color-mix(
-      in srgb,
-      var(--wp-accent) 45%,
-      transparent
-    );
-    --pico-primary-hover: var(--wp-accent);
-    --pico-primary-hover-background: var(--wp-button-hover);
-    --pico-primary-hover-border: var(--wp-button-hover);
-    --pico-primary-hover-underline: var(--wp-accent);
-    --pico-primary-focus: color-mix(in srgb, var(--wp-accent) 25%, transparent);
-    --pico-primary-inverse: var(--wp-button-ink);
-    --pico-form-element-background-color: var(--wp-surface);
-    --pico-form-element-border-color: var(--wp-rule);
-    --pico-form-element-color: var(--wp-ink);
-    --pico-form-element-placeholder-color: var(--wp-muted);
-    --pico-form-element-active-border-color: var(--wp-accent);
-    --pico-form-element-focus-color: color-mix(
-      in srgb,
-      var(--wp-accent) 25%,
-      transparent
-    );
-    --pico-modal-overlay-background-color: rgba(0, 0, 0, 0.65);
-    --pico-modal-overlay-backdrop-filter: none;
-    --pico-border-radius: 3px;
+    --wp-overlay: rgba(0, 0, 0, 0.65);
   }
 }
 
 /* -------------------------------------------------------------------- base */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html {
+  font-size: 100%;
+  -webkit-text-size-adjust: 100%;
+  text-size-adjust: 100%;
+}
+
+@media (min-width: 576px) {
+  html {
+    font-size: 106.25%;
+  }
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 112.5%;
+  }
+}
+
+@media (min-width: 1024px) {
+  html {
+    font-size: 118.75%;
+  }
+}
+
+@media (min-width: 1280px) {
+  html {
+    font-size: 125%;
+  }
+}
+
+@media (min-width: 1536px) {
+  html {
+    font-size: 131.25%;
+  }
+}
+
+h1,
+h2,
+h3 {
+  margin: 0 0 1rem;
+}
+
+h1 {
+  line-height: 1.125;
+}
+
+h2 {
+  line-height: 1.15;
+}
+
+h3 {
+  line-height: 1.2;
+}
+
+p {
+  margin: 0 0 1rem;
+}
+
+section {
+  margin-bottom: 1rem;
+}
+
+a {
+  color: var(--wp-accent);
+  text-decoration: underline;
+  text-underline-offset: 0.125em;
+}
+
+li {
+  margin-bottom: 0.25rem;
+}
+
+label {
+  display: block;
+  margin-bottom: 0.375rem;
+}
+
+input {
+  width: 100%;
+  /* One field height across the login form and the edit grids. */
+  height: 3.125rem;
+  margin: 0.25rem 0 1rem;
+  padding: 0.75rem 1rem;
+  border: 1px solid var(--wp-rule);
+  border-radius: 3px;
+  background: var(--wp-surface);
+  color: var(--wp-ink);
+  font: inherit;
+}
+
+input::placeholder {
+  color: var(--wp-muted);
+  opacity: 1;
+}
+
+input:focus {
+  border-color: var(--wp-accent);
+  outline: none;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--wp-accent) 25%, transparent);
+}
+
+button {
+  margin: 0;
+  font: inherit;
+  cursor: pointer;
+}
+
+article {
+  padding: 1rem;
+}
+
+dialog {
+  position: fixed;
+  inset: 0;
+  z-index: 999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  background: var(--wp-overlay);
+  color: var(--wp-ink);
+}
+
+dialog:not([open]) {
+  display: none;
+}
+
+dialog > article {
+  width: 100%;
+  max-width: 32rem;
+  max-height: calc(100vh - 2rem);
+  margin: 1rem;
+  overflow: auto;
+}
 
 :root {
   --wp-serif: "Fraunces", "Iowan Old Style", "Palatino Linotype", Palatino,
@@ -126,22 +197,30 @@
   --wp-sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     "Helvetica Neue", Arial, sans-serif;
   --wp-top: 2rem;
-  --pico-font-family: var(--wp-sans);
-  --pico-border-radius: 0.75rem;
 }
 
 body {
   display: flex;
   min-height: 100dvh;
   flex-direction: column;
+  margin: 0;
+  color: var(--wp-ink);
   font-family: var(--wp-sans);
+  font-size: 1rem;
+  line-height: 1.5;
 }
 
 main.container {
   width: 100%;
   flex: 1;
-  padding-top: var(--wp-top);
-  padding-bottom: 4rem;
+  margin-inline: auto;
+  padding: var(--wp-top) 1rem 4rem;
+}
+
+@media (min-width: 768px) {
+  main.container {
+    padding-inline: 0;
+  }
 }
 
 .icon {
@@ -165,12 +244,12 @@ main.container {
 }
 
 .button-primary {
-  background: var(--pico-primary-background);
-  color: var(--pico-primary-inverse);
+  background: var(--wp-button-bg);
+  color: var(--wp-button-ink);
 }
 
 .button-primary:hover {
-  background: var(--pico-primary-hover-background);
+  background: var(--wp-button-hover);
 }
 
 .button-block {
@@ -275,33 +354,6 @@ main.container {
 }
 
 /* ------------------------------------------------------------------- forms */
-
-/* Pico decorates every valid field with a green check and border. With a page
-full of inputs that is visual noise, so rely on our inline error state. */
-
-input:not([type="submit"]):not([type="button"]):not([type="reset"]):valid,
-textarea:valid,
-select:valid {
-  --pico-icon-valid: none;
-  --pico-form-element-valid-border-color: var(--pico-form-element-border-color);
-  --pico-form-element-valid-active-border-color: var(
-    --pico-form-element-active-border-color
-  );
-  --pico-form-element-valid-focus-color: var(--pico-form-element-focus-color);
-}
-
-input:not([type="submit"]):not([type="button"]):not([type="reset"]):invalid,
-textarea:invalid,
-select:invalid {
-  --pico-icon-invalid: none;
-  --pico-form-element-invalid-border-color: var(
-    --pico-form-element-border-color
-  );
-  --pico-form-element-invalid-active-border-color: var(
-    --pico-form-element-active-border-color
-  );
-  --pico-form-element-invalid-focus-color: var(--pico-form-element-focus-color);
-}
 
 /* ------------------------------------------------------------------ manage */
 
@@ -530,19 +582,6 @@ body {
 
 .button {
   border-radius: 3px;
-}
-
-/* Pico sizes every submit button at 100%; keep ours content-sized. */
-
-button.button,
-button.state-button,
-button.danger-link,
-button.button-quiet {
-  width: auto;
-}
-
-button.button-block {
-  width: 100%;
 }
 
 /* Masthead */

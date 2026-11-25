@@ -104,7 +104,6 @@ function layout(title: string, body: unknown): Html {
       type="font/woff2"
       crossorigin
     />
-    <link rel="stylesheet" href="/pico.min.css" />
     <link rel="stylesheet" href="/app.css" />
     <script src="/app.js" defer></script>
   </head>
@@ -126,8 +125,9 @@ function formError(message: string, id: string): Html {
 }
 
 /**
- * Pico styles every input that carries aria-invalid, including the value
- * "false". Emit the attribute only for the field that actually failed.
+ * Emit aria-invalid only for the field that actually failed. The stylesheet
+ * marks [aria-invalid="true"]; emitting "false" on every other field would be
+ * noise for assistive tech.
  */
 function errorAttrs(
   active: boolean,
